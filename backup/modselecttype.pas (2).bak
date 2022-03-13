@@ -1,0 +1,53 @@
+// Module to select measurement or binary data
+// Binary - or + is default
+unit modSelectType;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  ExtCtrls, modDataTypes, modTestData;
+
+type
+
+  { TdlgSelectFileType }
+
+  TdlgSelectFileType = class(TForm)
+    btnCancel: TButton;
+    btnOK: TButton;
+    rdgrpFileType: TRadioGroup;
+    function Execute(var wrdRadio: word): boolean;
+  private
+    { private declarations }
+  public
+    { public declarations }
+  end;
+
+var
+  dlgSelectFileType: TdlgSelectFileType;
+
+implementation
+
+{$R *.lfm}
+
+{ TdlgSelectFileType }
+
+
+function TdlgSelectFileType.Execute(var wrdRadio: word): boolean;
+begin
+  if ShowModal = mrOK then
+  begin
+    wrdRadio := rdgrpFileType.ItemIndex;
+    Result := True
+  end
+  else
+  begin
+    wrdRadio := wrdNoType;
+    Result := False;
+  end;
+end;
+
+end.
+

@@ -1,0 +1,59 @@
+object frmTreeGraph: TfrmTreeGraph
+  Left = 260
+  Height = 505
+  Top = 167
+  Width = 878
+  HorzScrollBar.Page = 859
+  HorzScrollBar.Range = 4000
+  VertScrollBar.Page = 37
+  VertScrollBar.Range = 2500
+  Caption = 'Tree Graph Form'
+  Constraints.MaxHeight = 10000
+  Constraints.MaxWidth = 5000
+  Menu = mnuTreeGraphForm
+  OnActivate = FormActivate
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnPaint = FormPaint
+  OnResize = FormResize
+  LCLVersion = '1.4.2.0'
+  object prtdlgTree: TPrintDialog
+    left = 54
+    top = 416
+  end
+  object mnuTreeGraphForm: TMainMenu
+    left = 96
+    top = 416
+    object mnuSprlTree: TMenuItem
+      Caption = 'Show &Spiral Tree'
+      OnClick = mnuSprlTreeClick
+    end
+    object mnuRctnglrTree: TMenuItem
+      Caption = 'Show &Rectangular Tree'
+      Enabled = False
+      OnClick = mnuRctnglrTreeClick
+    end
+    object mnuTopologyOnly: TMenuItem
+      Caption = 'Topology Only'
+      OnClick = mnuTopologyOnlyClick
+    end
+    object mnuPrintTree: TMenuItem
+      Caption = '&Print Tree'
+      OnClick = mnuPrintTreeClick
+    end
+    object mnuSaveTree: TMenuItem
+      Caption = '&Save Tree'
+      OnClick = mnuSaveTreeClick
+    end
+    object mnuClose: TMenuItem
+      Caption = '&Close'
+      OnClick = mnuCloseClick
+    end
+  end
+  object svdlgPaintJPEG: TSaveDialog
+    DefaultExt = '.jpg'
+    Filter = 'JPEG Graphic Image (*.jpg)|*.jpg|All Files (*.*)|*.*'
+    left = 144
+    top = 416
+  end
+end

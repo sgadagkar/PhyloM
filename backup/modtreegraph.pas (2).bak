@@ -1,0 +1,547 @@
+unit modTreeGraph;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, FileUtil, TAGraph, LvlGraphCtrl, PrintersDlgs, Forms,
+  Controls, Graphics, Dialogs, StdCtrls, ExtCtrls, ComCtrls, Printers, Menus,
+  modDataTypes, modTestData;
+
+type
+
+  { TfrmTreeGraph }
+
+  TfrmTreeGraph = class(TForm)
+    mnuTopologyOnly: TMenuItem;
+    mnuSaveTree: TMenuItem;
+    mnuTreeGraphForm: TMainMenu;
+    mnuClose: TMenuItem;
+    mnuRctnglrTree: TMenuItem;
+    mnuPrintTree: TMenuItem;
+    mnuSprlTree: TMenuItem;
+    prtdlgTree: TPrintDialog;
+    svdlgPaintJPEG: TSaveDialog;
+    procedure FormActivate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
+    procedure FormCreate(Sender: TObject);
+    procedure FormPaint(Sender: TObject);
+    procedure FormResize(Sender: TObject);
+    procedure mnuCloseClick(Sender: TObject);
+    procedure mnuPrintTreeClick(Sender: TObject);
+    procedure mnuRctnglrTreeClick(Sender: TObject);
+    procedure mnuSaveTreeClick(Sender: TObject);
+    procedure mnuSprlTreeClick(Sender: TObject);
+    procedure mnuTopologyOnlyClick(Sender: TObject);
+  private
+    { private declarations }
+    boolShowTree: boolean;
+    wrdDisplayTree: word;
+    procedure PaintToCanvas(PTCanvas: TCanvas);
+    procedure SetFormExtents(PTCanvas: TCanvas);
+    procedure PrintBracketTree(const boolPrintTree: boolean);
+    procedure PaintToFile(const strFileName: string);
+  public
+    { public declarations }
+  end;
+
+var
+  frmTreeGraph: TfrmTreeGraph;
+
+implementation
+
+{$R *.lfm}
+
+{ TfrmTreeGraph }
+
+uses
+  modpimd_b;
+
+var
+  pntTop,
+  pntBttm: TPoint;
+  intTopLngth,
+  int1stBegin,
+  int2ndBegin,
+  intScale,
+  intBttmLngth: integer;
+  HomeVrtcl,
+  ZeroVrtcl: TVrtclPosition;
+
+procedure TfrmTreeGraph.FormCreate(Sender: TObject);
+begin
+  Canvas.Brush.Color := clWhite;
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Refresh;
+  boolShowTree := True;
+  wrdDisplayTree := kBracketTree;
+  with Origin do
+  begin
+    initWidth := Width;
+    initHeight := Height;
+  end;
+end;
+
+procedure TfrmTreeGraph.SetFormExtents(PTCanvas: TCanvas);
+begin
+  case wrdDisplayTree of
+    kRadialTree: begin
+      if Origin.ttoRadial.Width > Canvas.Width then
+        HorzScrollBar.Range := Origin.ttoRadial.Width
+      else
+        HorzScrollBar.Range := 0;
+      if Origin.ttoRadial.Height > Canvas.Height then
+        VertScrollBar.Range := Origin.ttoRadial.Height
+      else
+        VertScrollBar.Range := 0;
+      PTCanvas.MoveTo(Origin.ttoRadial.GraphOrigin);
+    end;
+    kBracketTree: begin
+      if Origin.ttoBracket.Width > Canvas.Width then
+        HorzScrollBar.Range := Origin.ttoBracket.Width
+      else
+        HorzScrollBar.Range := 0;
+      if Origin.ttoBracket.Height > Canvas.Height then
+        VertScrollBar.Range := Origin.ttoBracket.Height
+      else
+        VertScrollBar.Range := 0;
+      PTCanvas.MoveTo(Origin.ttoBracket.GraphOrigin);
+    end;
+    kTopologyOnlyTree: begin
+      if Origin.ttoTplgyOnly.Width > Canvas.Width then
+        HorzScrollBar.Range := Origin.ttoTplgyOnly.Width
+      else
+        HorzScrollBar.Range := 0;
+      if Origin.ttoTplgyOnly.Height > Canvas.Height then
+        VertScrollBar.Range := Origin.ttoTplgyOnly.Height
+      else
+        VertScrollBar.Range := 0;
+      PTCanvas.MoveTo(Origin.ttoTplgyOnly.GraphOrigin);
+    end;
+  end;
+end;
+
+procedure TfrmTreeGraph.FormPaint(Sender: TObject);
+begin
+  PaintToCanvas(Canvas);
+end;
+
+procedure TfrmTreeGraph.FormResize(Sender: TObject);
+begin
+
+end;
+
+procedure TfrmTreeGraph.mnuCloseClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TfrmTreeGraph.mnuPrintTreeClick(Sender: TObject);
+begin
+  PrintBracketTree(True);
+end;
+
+procedure TfrmTreeGraph.mnuRctnglrTreeClick(Sender: TObject);
+begin
+  wrdDisplayTree := kBracketTree;
+  mnuRctnglrTree.Enabled := False;
+  mnuSprlTree.Enabled := True;
+  mnuTopologyOnly.Enabled := True;
+  mnuPrintTree.Enabled := True;
+  mnuSaveTree.Enabled := True;
+  boolShowTree := True;
+  Hide;
+  Show;
+end;
+
+procedure TfrmTreeGraph.mnuSaveTreeClick(Sender: TObject);
+var
+  strFlNm: string;
+begin
+  svdlgPaintJPEG.InitialDir := strCurrentDir;
+  if svdlgPaintJPEG.Execute then
+  begin
+    strFlNm := svdlgPaintJPEG.FileName;
+    if FileExists(strFlNm) then
+      if mrYes = MessageDlg('File: ' + strFlNm + ' already exists do you want to replace it?', mtConfirmation, [mbYes, mbNo], 0) then
+        try
+          PaintToFile(strFlNm);
+        except
+          on E:exception do MessageDlg(E.Message + ' for file: ' + strFlNm, mtWarning, [mbOK], 0);
+        end
+      else
+        MessageDlg('Original file: ' + strFlNm + ' unchanged.', mtWarning, [mbOK], 0)
+    else
+      PaintToFile(strFlNm);
+  end
+  else
+    MessageDlg('Request to save file: ' + strFlNm + ' cancelled.', mtWarning, [mbOK], 0);
+end;
+
+procedure TfrmTreeGraph.mnuSprlTreeClick(Sender: TObject);
+begin
+  wrdDisplayTree := kRadialTree;
+  mnuSprlTree.Enabled := False;
+  mnuRctnglrTree.Enabled := True;
+  mnuTopologyOnly.Enabled := True;
+  mnuPrintTree.Enabled := False;
+  mnuSaveTree.Enabled := False;
+  boolShowTree := True;
+  Hide;
+  Show;
+end;
+
+procedure TfrmTreeGraph.mnuTopologyOnlyClick(Sender: TObject);
+begin
+  SetLength(arryinxBracket, 1);
+  wrdDisplayTree := kTopologyOnlyTree;
+  mnuSprlTree.Enabled := True;
+  mnuRctnglrTree.Enabled := True;
+  mnuTopologyOnly.Enabled := False;
+  mnuPrintTree.Enabled := False;
+  mnuSaveTree.Enabled := False;
+  boolShowTree := True;
+  Hide;
+  Show;
+end;
+
+procedure TfrmTreeGraph.FormActivate(Sender: TObject);
+var
+  pntOrigin: TPoint;
+begin
+  if boolShowTree then
+  begin
+    with Origin do
+    begin
+      pntOrigin.x := initWidth div 2;
+      pntOrigin.y := initHeight div 2;
+      AssignRadialRange(pntOrigin, initWidth, initHeight);
+      pntOrigin.x := 100;
+      AssignBracketRange(pntOrigin, initWidth, initHeight);
+      pntOrigin.x := kStrtBrcktTOX;
+      pntOrigin.y := kStrtBrcktTOY;
+      AssignTplgyOnlyRange(pntOrigin, initWidth, initHeight);
+      case wrdDisplayTree of
+        kRadialTree: Canvas.MoveTo(ttoRadial.GraphOrigin);
+        kBracketTree: Canvas.MoveTo(ttoBracket.GraphOrigin);
+        kTopologyOnlyTree: Canvas.MoveTo(ttoTplgyOnly.GraphOrigin);
+      end;
+      intPixelFactor := intMaxPixelFactor(wrdDisplayTree);
+    end;
+    with TestTableForSpeciesData do
+    begin
+      sngIntrrOffset := kFullCircle / (NodeCount - SpeciesCount + 1);
+      sngExtrrOffset := kFullCircle / SpeciesCount;
+      sngHalfAngle := sngExtrrOffset / 2.0;
+      sngHalfInterior := sngIntrrOffset / 2.0;
+    end;
+    CreateRadialGraph(Width div 2, Height div 2);
+    CreateBracketTree(HomeVrtcl, ZeroVrtcl, intScale);
+    CreateTopologyOnlyTree;
+    with frmPIMD_B, TestTableForSpeciesData do
+    begin
+      txtZeroLength.Text := IntToStr(Species[NodeCount].VrtclPosition.intVrtclLngth);
+      txtZeroSpace.Text := IntToStr(Species[NodeCount].VrtclPosition.intVrtclSpc);
+      txtHomeLength.Text := IntToStr(HomeVrtcl.intVrtclLngth);
+      txtHomeSpace.Text := IntToStr(HomeVrtcl.intVrtclSpc);
+    end;
+    SetFormExtents(Canvas);
+    boolShowTree := False;
+  end;
+end;
+
+procedure TfrmTreeGraph.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  boolShowTree := True;
+end;
+
+procedure TfrmTreeGraph.PrintBracketTree(const boolPrintTree: boolean);
+
+procedure DrawScale(const intScl: integer);
+var
+  intTextWidth: integer;
+begin
+  with Printer.Canvas do
+  begin
+    Font.Size := 20;
+    TextOut(1000, 20, 'Tree: ' + TestTableForSpeciesData.SpeciesTitle);
+    Font.Size := 5;
+    TextOut(20, 20, 'Scale:');
+    intTextWidth := TextWidth('Scale:');
+    MoveTo(intTextWidth + 20, 56);
+    LineTo(intTextWidth + 20 + intScl * 5, 56);
+    MoveTo(intTextWidth + 20 + intScl * 5 div 2, 12);
+    TextOut(intTextWidth + intScl * 5 div 2 + 20, 0, '5');
+  end;
+end;
+
+procedure DrawBracket(const VrtclPstn: TVrtclPosition);
+begin
+  with VrtclPstn, Printer.Canvas do
+  begin
+    MoveTo(BgnVrtcl.x * 5, BgnVrtcl.y * 10);
+    LineTo(EndVrtcl.x * 5, EndVrtcl.y * 10);
+    LineTo(BtmHrzntl.x * 5, BtmHrzntl.y * 10);
+    MoveTo(BgnVrtcl.x * 5, BgnVrtcl.y * 10);
+    LineTo(TopHrzntl.x * 5, BgnVrtcl.y * 10);
+  end;
+end;
+
+procedure DrawLabel(const VrtclPstn: TVrtclPosition; const Segment: TSegment);
+begin
+  with TestTableForSpeciesData, VrtclPstn, Segment, Printer.Canvas do
+  begin
+    if Species[int1stXNd].VerticalMode = Leaf then
+      TextOut(TopHrzntl.x * 5 + 1, TopHrzntl.y * 10 - 34, Species[Species[int1stXNd].EndSegment.int1stXNd].SpeciesName);
+    if Species[int2ndXNd].VerticalMode = Leaf then
+      TextOut(BtmHrzntl.x * 5 + 1, BtmHrzntl.y * 10 - 34, Species[Species[int2ndXNd].EndSegment.int1stXNd].SpeciesName);
+  end;
+end;
+
+procedure DrawBracketLabel(const VrtclPstn: TVrtclPosition; const Segment: TSegment);
+begin
+  with VrtclPstn, Segment, Printer.Canvas do
+    if int1stXNd <> int2ndXNd then
+    begin
+      DrawBracket(VrtclPstn);
+      DrawLabel(VrtclPstn, Segment);
+    end;
+end;
+
+var
+  intNdLvl,
+  intLngth,
+  inx: integer;
+  GrphCntr: TPoint;
+begin
+  with Printer do
+    if boolPrintTree then
+      if prtdlgTree.Execute then
+      begin
+        Printer.Orientation := poLandscape;
+        BeginDoc;
+        with TestTableForSpeciesData, Printer.Canvas do
+        begin
+          DrawScale(intScale);
+          DrawBracket(HomeVrtcl);
+          DrawBracketLabel(Species[NodeCount].VrtclPosition, Species[NodeCount].EndSegment);
+          DrawBracketLabel(Species[NodeCount - 1].VrtclPosition, Species[NodeCount - 1].EndSegment);
+          intNdLvl := 1;
+          while boolMoreNodeLevels(intNdLvl) do
+            begin
+              for inx := 0 to NodeCount - 2 do
+                if Species[inx].NodeLevel = intNdLvl then
+                  DrawBracketLabel(Species[inx].VrtclPosition, Species[inx].EndSegment);
+              inc(intNdLvl);
+            end;
+        end;
+        EndDoc;
+      end
+      else
+        MessageDlg('Request to print rectangular tree has been cancelled.', mtWarning, [mbOK], 0);
+end;
+
+procedure TfrmTreeGraph.PaintToCanvas(PTCanvas: TCanvas);
+
+procedure DrawScale(const intScl: integer);
+var
+  intTextWidth: integer;
+begin
+  with PTCanvas do
+  begin
+    Font.Size := 20;
+    TextOut(400, 25, 'Tree: ' + TestTableForSpeciesData.SpeciesTitle);
+    Font.Size := 10;
+    TextOut(20, 20, 'Scale:');
+    intTextWidth := TextWidth('Scale:');
+    MoveTo(intTextWidth + 20, 30);
+    LineTo(intTextWidth + 20 + intScl, 30);
+    MoveTo(intTextWidth + 20 + intScl div 2, 12);
+    TextOut(intTextWidth + intScl div 2 + 20, 11, '5');
+  end;
+end;
+
+procedure DrawBracket(const VrtclPstn: TVrtclPosition);
+begin
+  with VrtclPstn, PTCanvas do
+  begin
+    MoveTo(BgnVrtcl);
+    LineTo(EndVrtcl);
+    LineTo(BtmHrzntl);
+    MoveTo(BgnVrtcl);
+    LineTo(TopHrzntl);
+  end;
+end;
+
+procedure DrawLabel(const VrtclPstn: TVrtclPosition; const Segment: TSegment);
+begin
+  with TestTableForSpeciesData, VrtclPstn, Segment, PTCanvas do
+  begin
+    if Species[int1stXNd].VerticalMode = Leaf then
+      TextOut(TopHrzntl.x + 1, TopHrzntl.y - 9, Species[Species[int1stXNd].EndSegment.int1stXNd].SpeciesName);
+    if Species[int2ndXNd].VerticalMode = Leaf then
+      TextOut(BtmHrzntl.x + 1, BtmHrzntl.y - 9, Species[Species[int2ndXNd].EndSegment.int1stXNd].SpeciesName);
+  end;
+end;
+
+procedure DrawBracketLabel(const VrtclPstn: TVrtclPosition; const Segment: TSegment);
+begin
+  with VrtclPstn, Segment, PTCanvas do
+    if int1stXNd <> int2ndXNd then
+    begin
+      DrawBracket(VrtclPstn);
+      DrawLabel(VrtclPstn, Segment);
+    end;
+end;
+
+var
+  intNdLvl,
+  intLngth,
+  inx: integer;
+  GrphCntr: TPoint;
+begin
+  PTCanvas.Refresh;
+  PTCanvas.Clear;
+  PTCanvas.Pen.Color := clBlack;
+  PTCanvas.Pen.Style := psSolid;
+  PTCanvas.Pen.Width := 1;
+  case wrdDisplayTree of
+  //  if boolDisplayRadialTree then
+    kRadialTree: with TestTableForSpeciesData, PTCanvas do
+    begin
+{      GrphCntr.x := Width div 2;
+      GrphCntr.y := Height div 2;
+      AssignRange(GrphCntr, Width, Height);}
+      for inx := 0 to NodeCount do
+        with Species[inx] do
+        begin
+          MoveTo(BeginSegment.pntRadial.x, BeginSegment.pntRadial.y);
+          LineTo(EndSegment.pntRadial.x, EndSegment.pntRadial.y);
+        end;
+    end;
+    kTopologyOnlyTree: with TestTableForSpeciesData, PTCanvas do
+      for inx := 0 to NodeCount do
+        with Species[inx].TplgyOnly do
+          if Drawn then
+          begin
+            if inx < SpeciesCount then
+              TextOut(EndHrzntl.x + 1, EndHrzntl.y - 9, Species[inx].SpeciesName);
+            if TopVrtcl.y <> BtmVrtcl.y then
+            begin
+              MoveTo(TopVrtcl.x, TopVrtcl.y);
+              LineTo(BtmVrtcl.x, BtmVrtcl.y);
+            end;
+            MoveTo(BgnHrzntl.x, BgnHrzntl.y);
+            LineTo(EndHrzntl.x, EndHrzntl.y);
+            if inx = NodeCount then
+            begin
+              MoveTo(BgnHrzntl.x, BgnHrzntl.y);
+              with Species[NodeCount - 1].TplgyOnly do
+                LineTo(BgnHrzntl.x, BgnHrzntl.y);
+            end;
+          end;
+//  else
+    kBracketTree: with TestTableForSpeciesData, PTCanvas do
+    begin
+      DrawScale(intScale);
+      DrawBracket(HomeVrtcl);
+      DrawBracketLabel(Species[NodeCount].VrtclPosition, Species[NodeCount].EndSegment);
+      DrawBracketLabel(Species[NodeCount - 1].VrtclPosition, Species[NodeCount - 1].EndSegment);
+{      with ZeroVrtcl do
+      begin
+        int1stBegin := Species[NodeCount - 1].BeginSegment.int1stXNd;
+        int2ndBegin := Species[NodeCount - 1].BeginSegment.int2ndXNd;
+        MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+        LineTo(EndVrtcl.x, EndVrtcl.y);
+        intLngth := Trunc(Species[int2ndBegin].BranchLength * intPixelFactor * kShortLengthFactor);
+        LineTo(EndVrtcl.x + intLngth, EndVrtcl.y);
+        if Species[int2ndBegin].EndSegment.int1stXNd = Species[int2ndBegin].EndSegment.int2ndXNd then
+          TextOut(EndVrtcl.x + intLngth + 1, EndVrtcl.y - 5, Species[int2ndBegin].SpeciesName);
+        MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+        intLngth := Trunc(Species[int1stBegin].BranchLength * intPixelFactor * kShortLengthFactor);
+        LineTo(BgnVrtcl.x + intLngth, BgnVrtcl.y);
+        if Species[int1stBegin].EndSegment.int1stXNd = Species[int1stBegin].EndSegment.int2ndXNd then
+          TextOut(BgnVrtcl.x + intLngth + 1, BgnVrtcl.y - 5, Species[int1stBegin].SpeciesName);
+      end;
+      with ZeroVrtcl do
+      begin
+        MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+        LineTo(EndVrtcl.x, EndVrtcl.y);
+        intLngth := Trunc(Species[int2ndBegin].BranchLength * intPixelFactor * kShortLengthFactor);
+        LineTo(EndVrtcl.x + intLngth, EndVrtcl.y);
+        if Species[int2ndBegin].EndSegment.int1stXNd = Species[int2ndBegin].EndSegment.int2ndXNd then
+          TextOut(EndVrtcl.x + intLngth + 1, EndVrtcl.y - 5, Species[int2ndBegin].SpeciesName);
+        MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+        intLngth := Trunc(Species[int1stBegin].BranchLength * intPixelFactor * kShortLengthFactor);
+        LineTo(BgnVrtcl.x + intLngth, BgnVrtcl.y);
+        if Species[int1stBegin].EndSegment.int1stXNd = Species[int1stBegin].EndSegment.int2ndXNd then
+          TextOut(BgnVrtcl.x + intLngth + 1, BgnVrtcl.y - 5, Species[int1stBegin].SpeciesName);
+      end;
+      with Species[NodeCount - 1].VrtclPosition do
+      begin
+        MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+        LineTo(EndVrtcl.x, EndVrtcl.y);
+        intLngth := Trunc(Species[Species[NodeCount - 1].EndSegment.int2ndXNd].BranchLength * intPixelFactor * kShortLengthFactor);
+        LineTo(EndVrtcl.x + intLngth, EndVrtcl.y);
+        if Species[Species[NodeCount - 1].EndSegment.int2ndXNd].EndSegment.int1stXNd = Species[Species[NodeCount - 1].EndSegment.int2ndXNd].EndSegment.int2ndXNd then
+          TextOut(EndVrtcl.x + intLngth + 1, EndVrtcl.y - 5, Species[Species[NodeCount - 1].EndSegment.int2ndXNd].SpeciesName);
+        MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+        intLngth := Trunc(Species[Species[NodeCount - 1].EndSegment.int1stXNd].BranchLength * intPixelFactor * kShortLengthFactor);
+        LineTo(BgnVrtcl.x + intLngth, BgnVrtcl.y);
+        if Species[Species[NodeCount - 1].EndSegment.int1stXNd].EndSegment.int1stXNd = Species[Species[NodeCount - 1].EndSegment.int1stXNd].EndSegment.int2ndXNd then
+          TextOut(BgnVrtcl.x + intLngth + 1, BgnVrtcl.y - 5, Species[Species[NodeCount - 1].EndSegment.int1stXNd].SpeciesName);
+      end;}
+      intNdLvl := 1;
+      while boolMoreNodeLevels(intNdLvl) do
+      begin
+        for inx := 0 to NodeCount - 2 do
+          if Species[inx].NodeLevel = intNdLvl then
+            DrawBracketLabel(Species[inx].VrtclPosition, Species[inx].EndSegment);
+{            with Species[inx] do
+              with VrtclPosition do
+              begin
+                MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+                LineTo(EndVrtcl.x, EndVrtcl.y);
+                intLngth := Trunc(Species[Species[inx].EndSegment.int2ndXNd].BranchLength * intPixelFactor * kShortLengthFactor);
+                LineTo(EndVrtcl.x + intLngth, EndVrtcl.y);
+                if Species[Species[inx].EndSegment.int2ndXNd].EndSegment.int1stXNd = Species[Species[inx].EndSegment.int2ndXNd].EndSegment.int2ndXNd then
+                  TextOut(EndVrtcl.x + intLngth + 1, EndVrtcl.y - 5, Species[Species[inx].EndSegment.int2ndXNd].SpeciesName);
+                MoveTo(BgnVrtcl.x, BgnVrtcl.y);
+                intLngth := Trunc(Species[Species[inx].EndSegment.int1stXNd].BranchLength * intPixelFactor * kShortLengthFactor);
+                LineTo(BgnVrtcl.x + intLngth, BgnVrtcl.y);
+                if Species[Species[inx].EndSegment.int1stXNd].EndSegment.int1stXNd = Species[Species[inx].EndSegment.int1stXNd].EndSegment.int2ndXNd then
+                  TextOut(BgnVrtcl.x + intLngth + 1, BgnVrtcl.y - 5, Species[Species[inx].EndSegment.int1stXNd].SpeciesName);
+              end;}
+        inc(intNdLvl);
+      end;
+    end;
+  end;
+end;
+
+procedure TfrmTreeGraph.PaintToFile(const strFileName: string);
+var
+  Bitmap: TBitmap;
+  jp: TJPEGImage;
+begin
+  Bitmap := TBitmap.Create;
+  try
+    jp := TJPEGImage.Create;
+    try
+      Bitmap.SetSize(Origin.ttoBracket.Width, Origin.ttoBracket.Height + 50);
+      Bitmap.Canvas.FloodFill(100, 100, clWhite, fsSurface);
+      Bitmap.Canvas.Brush.Color := clWhite;
+      Bitmap.Canvas.Refresh;
+      PaintToCanvas(Bitmap.Canvas);
+      jp.Assign(Bitmap);
+      jp.SaveToFile(strFileName);
+    finally
+      jp.Free;
+    end;
+  finally
+    Bitmap.Free;
+  end;
+end;
+
+end.
+

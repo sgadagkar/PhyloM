@@ -1,0 +1,276 @@
+object frmTreeGraph: TfrmTreeGraph
+  Left = 283
+  Height = 620
+  Top = 52
+  Width = 1021
+  HorzScrollBar.Page = 1040
+  HorzScrollBar.Range = 1040
+  VertScrollBar.Page = 592
+  VertScrollBar.Range = 592
+  Caption = 'Tree Viewer'
+  ClientHeight = 600
+  ClientWidth = 1021
+  Constraints.MaxHeight = 10000
+  Constraints.MaxWidth = 5000
+  FormStyle = fsMDIForm
+  Menu = mnuTreeView
+  OnActivate = FormActivate
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnDeactivate = FormDeactivate
+  OnDestroy = FormDestroy
+  OnHide = FormHide
+  OnPaint = FormPaint
+  OnResize = FormResize
+  OnShow = FormShow
+  OnWindowStateChange = FormWindowStateChange
+  ShowHint = True
+  LCLVersion = '1.6.4.0'
+  object pnlTreeGraph: TPanel
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = Owner
+    Left = 0
+    Height = 23
+    Top = 0
+    Width = 1040
+    Align = alTop
+    BorderSpacing.CellAlignHorizontal = ccaLeftTop
+    BorderSpacing.CellAlignVertical = ccaLeftTop
+    ClientHeight = 23
+    ClientWidth = 1040
+    ParentColor = False
+    TabOrder = 0
+    object lblRoot: TLabel
+      Left = 432
+      Height = 15
+      Top = 5
+      Width = 28
+      Caption = 'Root:'
+      Enabled = False
+      ParentColor = False
+    end
+    object lblSBL: TLabel
+      Left = 8
+      Height = 15
+      Top = 5
+      Width = 22
+      Caption = 'SBL:'
+      ParentColor = False
+    end
+    object txtSBL: TEdit
+      Left = 40
+      Height = 23
+      Top = 0
+      Width = 103
+      ReadOnly = True
+      TabOrder = 0
+    end
+    object lblDisplay: TLabel
+      Left = 184
+      Height = 15
+      Top = 5
+      Width = 26
+      Caption = 'Tree:'
+      ParentColor = False
+    end
+    object txtDisplay: TEdit
+      Left = 216
+      Height = 23
+      Top = 0
+      Width = 180
+      ReadOnly = True
+      TabOrder = 1
+      Text = 'Rectangular Unrooted'
+    end
+    object txtSelectedRoot: TEdit
+      Left = 464
+      Height = 23
+      Top = 0
+      Width = 142
+      Enabled = False
+      ReadOnly = True
+      TabOrder = 2
+    end
+  end
+  object scrbxTreeGraph: TScrollBox
+    AnchorSideLeft.Control = Owner
+    AnchorSideBottom.Control = pnlTreeGraph
+    Left = 0
+    Height = 574
+    Top = 26
+    Width = 1040
+    HorzScrollBar.Page = 580
+    HorzScrollBar.Tracking = True
+    VertScrollBar.Page = 374
+    VertScrollBar.Tracking = True
+    ClientHeight = 570
+    ClientWidth = 1036
+    TabOrder = 1
+    object imgTreeGraph: TImage
+      AnchorSideLeft.Control = scrbxTreeGraph
+      AnchorSideTop.Control = scrbxTreeGraph
+      Left = 0
+      Height = 374
+      Top = 0
+      Width = 580
+    end
+  end
+  object prtdlgTree: TPrintDialog
+    left = 184
+    top = 528
+  end
+  object svdlgPaintJPEG: TSaveDialog
+    DefaultExt = '.jpg'
+    Filter = 'JPEG Graphic Image (*.jpg)|*.jpg|All Files (*.*)|*.*'
+    left = 256
+    top = 528
+  end
+  object ilButtonIcons: TImageList
+    left = 336
+    top = 528
+    Bitmap = {
+      4C690200000010000000100000000080800000808000000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FFFFFF
+      00FFFFFF00FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FFFFFF
+      00FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF00FFFFFF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF000000FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF000080FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF0000
+      80FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000080FF00FF
+      FFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000
+      00FF0080800000808000008080000080800000808000000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF00808000008080000080800000808000008080007F7F7FFF7F7F7FFF7F7F
+      7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F
+      7FFF00808000008080000080800000808000008080007F7F7FFFFFFFFFFF7F7F
+      7FFF7F7F7FFF7F7F7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF7F7F
+      7FFFFFFFFFFF7F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000FFFFFFFF7F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFF7F7F7FFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFFFFFFFFFF0080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      8000008080007F7F7FFFFFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF0080
+      80007F7F7FFF00808000FFFFFFFF008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFFFFFFFFFF7F7F
+      7FFF00808000FFFFFFFF00808000008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFF7F7F7FFF0080
+      8000FFFFFFFF0080800000808000008080000080800000808000008080007F7F
+      7FFFFFFFFFFF008080000080800000808000008080007F7F7FFF7F7F7FFF7F7F
+      7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F7FFF7F7F
+      7FFFFFFFFFFF0080800000808000
+    }
+  end
+  object mnuTreeView: TMainMenu
+    left = 24
+    top = 528
+    object mnuFile: TMenuItem
+      Caption = 'File'
+      ShortCut = 16454
+      object mnuSaveAs: TMenuItem
+        Caption = 'Save Tree As'
+        object mnuSave: TMenuItem
+          Caption = 'Image (JPEG)'
+          ShortCut = 16467
+          OnClick = mnuSaveClick
+        end
+        object mnuNewickSave: TMenuItem
+          Caption = 'Newick formatted text file'
+          ShortCut = 16462
+          OnClick = mnuNewickSaveClick
+        end
+      end
+      object mnuPrint: TMenuItem
+        Caption = 'Print Tree'
+        ShortCut = 16464
+        OnClick = mnuPrintClick
+      end
+      object mnuExit: TMenuItem
+        Caption = 'Close Tree Viewer'
+        ShortCut = 16451
+        OnClick = mnuExitClick
+      end
+    end
+    object mnuGraphType: TMenuItem
+      Caption = 'Display'
+      ShortCut = 16455
+      object mnuInferredTree: TMenuItem
+        Caption = 'Inferred Tree'
+        object mnuRectangularURt: TMenuItem
+          Caption = 'Rectangular'
+          Enabled = False
+          OnClick = mnuRectangularURtClick
+        end
+        object mnuTopologyOnlyURt: TMenuItem
+          Caption = 'Topology Only '
+          OnClick = mnuTopologyOnlyURtClick
+        end
+        object mnuRadialUnrooted: TMenuItem
+          Caption = 'Radial'
+          Visible = False
+          OnClick = mnuRadialUnrootedClick
+        end
+      end
+      object mnuRootedTree: TMenuItem
+        Caption = 'RootedTree'
+        Visible = False
+        object mnuRectangularRooted: TMenuItem
+          Caption = 'Rectangular'
+          Enabled = False
+          OnClick = mnuRectangularRootedClick
+        end
+        object mnuNewickTO: TMenuItem
+          Caption = 'Topology Only'
+          Enabled = False
+          OnClick = mnuNewickTOClick
+        end
+      end
+    end
+    object mnuRootTheTreeOn: TMenuItem
+      Caption = 'Root Tree On'
+      Hint = 'Root tree on chosen segment.  No options below'
+      OnClick = mnuRootTheTreeOnClick
+    end
+  end
+  object svdlgPaintNwk: TSaveDialog
+    DefaultExt = '.nwk'
+    Filter = 'Newick format (*.nwk)|*.nwk|All Files (*.*)|*.*'
+    left = 112
+    top = 528
+  end
+end

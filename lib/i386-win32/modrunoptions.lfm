@@ -1,0 +1,67 @@
+object dlgRunOptions: TdlgRunOptions
+  Left = 390
+  Height = 148
+  Top = 197
+  Width = 215
+  BorderStyle = bsDialog
+  Caption = 'Bootstrap Options'
+  ClientHeight = 148
+  ClientWidth = 215
+  Font.CharSet = ANSI_CHARSET
+  Font.Color = clBlack
+  Font.Height = -16
+  Font.Name = 'Arial'
+  Font.Pitch = fpVariable
+  Font.Quality = fqDraft
+  LCLVersion = '1.6.4.0'
+  object btnCancel: TButton
+    Left = 119
+    Height = 48
+    Top = 88
+    Width = 86
+    Caption = '&Cancel'
+    ModalResult = 2
+    TabOrder = 0
+  end
+  object btnOK: TButton
+    Left = 8
+    Height = 48
+    Top = 88
+    Width = 94
+    Caption = '&Ok'
+    Default = True
+    ModalResult = 1
+    TabOrder = 1
+  end
+  object chkbxBootStraps: TCheckBox
+    Left = 48
+    Height = 22
+    Top = 16
+    Width = 96
+    Caption = 'Bootstraps'
+    OnClick = chkbxBootStrapsClick
+    TabOrder = 2
+  end
+  object lblTests: TLabel
+    Left = 16
+    Height = 41
+    Top = 40
+    Width = 78
+    AutoSize = False
+    Caption = 'Number of Replicates:'
+    Enabled = False
+    ParentColor = False
+    Visible = False
+    WordWrap = True
+  end
+  object edbxTests: TEdit
+    Left = 104
+    Height = 26
+    Top = 47
+    Width = 101
+    Enabled = False
+    TabOrder = 3
+    Text = '100'
+    Visible = False
+  end
+end

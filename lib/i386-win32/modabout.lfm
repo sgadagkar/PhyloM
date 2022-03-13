@@ -1,0 +1,81 @@
+object frmAbout: TfrmAbout
+  Left = 1089
+  Height = 135
+  Top = 67
+  Width = 346
+  Caption = 'About - PIMD_B'
+  ClientHeight = 135
+  ClientWidth = 346
+  OnActivate = FormActivate
+  LCLVersion = '1.4.0.4'
+  object btnOK: TButton
+    Left = 256
+    Height = 34
+    Top = 90
+    Width = 76
+    Caption = '&Ok'
+    Default = True
+    OnClick = btnOKClick
+    TabOrder = 0
+  end
+  object lblHeapError: TLabel
+    Left = 11
+    Height = 15
+    Top = 12
+    Width = 59
+    Caption = 'Heap Error:'
+    ParentColor = False
+  end
+  object txtHeapError: TEdit
+    Left = 76
+    Height = 23
+    Top = 12
+    Width = 119
+    TabOrder = 1
+  end
+  object lblTotalSpace: TLabel
+    Left = 11
+    Height = 15
+    Top = 41
+    Width = 109
+    Caption = 'Total Address Space:'
+    ParentColor = False
+  end
+  object txtTotalSpace: TEdit
+    Left = 132
+    Height = 23
+    Top = 41
+    Width = 103
+    TabOrder = 2
+  end
+  object lblTotalFree: TLabel
+    Left = 11
+    Height = 15
+    Top = 68
+    Width = 55
+    Caption = 'Total Free:'
+    ParentColor = False
+  end
+  object txtTotalFree: TEdit
+    Left = 71
+    Height = 23
+    Top = 68
+    Width = 110
+    TabOrder = 3
+  end
+  object lblTotalUsed: TLabel
+    Left = 13
+    Height = 15
+    Top = 101
+    Width = 59
+    Caption = 'Total Used:'
+    ParentColor = False
+  end
+  object txtTotalUsed: TEdit
+    Left = 80
+    Height = 23
+    Top = 101
+    Width = 127
+    TabOrder = 4
+  end
+end
