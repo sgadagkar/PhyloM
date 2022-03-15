@@ -1,0 +1,453 @@
+//procedure FindPoints(const intNode: integer; var intFirst, intSecond: integer);
+
+{
+Used with old radial tree.
+  Procedure to find child points relative to node level 0 which are root branches
+  and returns the children of the root nodes.  This will find points if no parent
+  is assignned.
+
+Parameters:
+  intNode -> node index being searched to find points
+  ariSgmntPnt ->  array[0..1] of array[0..1] of integer
+}
+procedure FindPointFromNodeLevel(const intNode: integer; var ariSgmntPnt :TSegmentPoints);
+var
+  iny,
+  inx: integer;
+begin
+  iny := 0;
+  with TestTableForSpeciesData do
+    for inx := 0 to intNode - 1 do
+      if Species[inx].NodeParent = 0 then
+        if Species[inx].NodeLevel = Species[intNode].NodeLevel + 1 then
+          if iny = 0 then
+          begin
+            ariSgmntPnt[0][iny] := inx;
+            inc(iny);
+          end
+          else
+          begin
+            ariSgmntPnt[0][iny] := inx;
+            break;
+          end;
+end;
+
+{
+Used with old radial tree.
+  Procedure to find child points found by paarent node in record and returns the
+  matching nodes for this parent.
+
+Parameters:
+  intNode -> parent node being searched to find points
+  intFirst -> First point to be found
+  intSecond -> Second point to be found
+}
+procedure FindPoints(const intNode: integer; var intFirst, intSecond: integer);
+var
+  iny,
+  inx: integer;
+begin
+  iny := 1;
+  with TestTableForSpeciesData do
+    for inx := 0 to intNode - 1 do
+      if Species[inx].NodeParent = intNode then
+        if iny = 1 then
+        begin
+          inc(iny);
+          intFirst := inx;
+        end
+        else
+        begin
+          intSecond := inx;
+          break;
+       end;
+end;
+
+{
+Used with old radial tree.
+  Procedure to find parent and sibling points found by using selected node and returns
+  the parent and sibling nodes from the selected node.
+
+Parameters:
+  intNode -> parent node being searched to find points
+  intParent -> Parent point to be found
+  intSibling -> Sibling point to be found
+}
+procedure FindParentSibling(const intNode: integer; var intParent, intSibling: integer);
+var
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    intParent := Species[intNode].NodeParent;
+    for inx := 0 to NodeCount - 1 do
+      if Species[inx].NodeParent = intParent then
+        if inx <> intNode then
+        begin
+          intSibling := inx;
+          break;
+        end;
+  end;
+end;
+
+{
+Used with old radial tree.
+  Procedure to find final points found by using selected node matching parent node
+  to other parent in the tree and returns the children from matching parent node.
+
+Parameters:
+  intNode -> parent node being searched to find points
+  intFirst -> First point to be found
+  intSecond -> Second point to be found
+}
+{procedure FindFinalPoints(const intNode: integer; var intFirst, intSecond: integer);
+var
+  iny,
+  inx: integer;
+begin
+  iny := 1;
+  with TestTableForSpeciesData do
+  begin
+    for inx := 0 to SpeciesCount - 1 do
+      if Species[inx].NodeParent = Species[intNode].NodeParent then
+        if iny = 1 then
+        begin
+          inc(iny);
+          intFirst := inx;
+        end
+        else
+        begin
+          intSecond := inx;
+          break;
+        end;
+  end;
+end;
+
+procedure CreateFirstSegment(var ariSgmntPnt :TSegmentPoints);
+var
+  cpptQuadrant: CompassPnt;
+  sngQuadrantAngle: single;
+  dblRghtAngl,
+  dblLftAngl,
+  dblCosine,
+  dblSine: double;
+  iny,
+  inx,
+  intRghtBrnch,
+  intLftBrnch,
+  intAjacent,
+  intOpposite: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    intRghtBrnch := NodeCount;
+    intLftBrnch := NodeCount - 1;
+//    FindPoints(intHomeNode, ariSgmntPnt[1][0], ariSgmntPnt[1][1]);
+//    FindPointFromNodeLevel(intHomeNode, ariSgmntPnt);
+    with Species[NodeCount + 1] do
+    begin
+      BeginSegment.pntRadial := Origin.ttoRadial.GraphOrigin;
+      EndSegment.pntRadial := Origin.ttoRadial.GraphOrigin;
+    end;
+    with Species[intRghtBrnch] do
+    begin
+      BeginSegment.pntRadial.x := Origin.ttoRadial.GraphOrigin.x;
+      BeginSegment.pntRadial.y := Origin.ttoRadial.GraphOrigin.y;
+      ariSgmntPnt[1][0] := EndSegment.int1stXNd;
+      ariSgmntPnt[1][1] := EndSegment.int2ndXNd;
+      dblRghtAngl := kStartAngle;
+      dblAngle := dblRghtAngl;
+      sngExterior := kStartAngle - sngExtrrOffset - sngHalfAngle;
+      sngInterior := kStartAngle - sngIntrrOffset - sngHalfInterior;
+      if BranchLength > 1.0 then
+        intAjacent := Trunc(BranchLength) * intPixelFactor
+      else
+        intAjacent := intPixelFactor;
+      EndSegment.pntRadial.x := BeginSegment.pntRadial.x + intAjacent;
+      EndSegment.pntRadial.y := BeginSegment.pntRadial.y;
+//      EndSegment.int1stXNd :=  ariSgmntPnt[1][0];
+//      EndSegment.int2ndXNd := ariSgmntPnt[1][1];
+    end;
+    with TestTableForSpeciesData.Species[intLftBrnch] do
+    begin
+      BeginSegment.pntRadial.x := Origin.ttoRadial.GraphOrigin.x;
+      BeginSegment.pntRadial.y := Origin.ttoRadial.GraphOrigin.y;
+      ariSgmntPnt[0][0] := EndSegment.int1stXNd;
+      ariSgmntPnt[0][1] := EndSegment.int2ndXNd;
+      dblLftAngl := kStartAngle + kSemiCircle;
+      dblAngle := dblLftAngl;
+      if BranchLength > 1.0 then
+        intAjacent := Trunc(BranchLength) * intPixelFactor
+      else
+        intAjacent := intPixelFactor;
+      EndSegment.pntRadial.x := BeginSegment.pntRadial.x - intAjacent;
+      EndSegment.pntRadial.y := BeginSegment.pntRadial.y;
+    end;
+    for inx := 0 to 1 do
+      with TestTableForSpeciesData.Species[ariSgmntPnt[0][inx]] do
+      begin
+        dblAngle := dblRghtAngl + (inx - 1) * kRghtAnglBsctd + inx * kRghtAnglBsctd;
+        cpptQuadrant := FindQudrant(dblAngle);
+        sngQuadrantAngle := dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((BranchLength) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((BranchLength) * dblSine) * intPixelFactor;
+        BeginSegment.pntRadial.x := Species[intRghtBrnch].EndSegment.pntRadial.x;
+        BeginSegment.pntRadial.y := Species[intRghtBrnch].EndSegment.pntRadial.y;
+        EndSegment.pntRadial.x := BeginSegment.pntRadial.x + intAjacent;
+        EndSegment.pntRadial.y := BeginSegment.pntRadial.y + intOpposite;
+//        BeginSegment.int1stXNd := intHomeNode;
+//        if inx = 0 then
+//          BeginSegment.int2ndXNd := ariSgmntPnt[1][1]
+//        else
+//          BeginSegment.int2ndXNd := ariSgmntPnt[1][0];
+//        if ariSgmntPnt[1][inx] < SpeciesCount then
+//        begin
+//          EndSegment.int1stXNd := ariSgmntPnt[1][inx];
+//          EndSegment.int2ndXNd := ariSgmntPnt[1][inx];
+//        end;
+      end;
+    for inx := 0 to 1 do
+      with TestTableForSpeciesData.Species[ariSgmntPnt[1][inx]] do
+      begin
+        dblAngle := dblLftAngl + (inx - 1) * kRghtAnglBsctd + inx * kRghtAnglBsctd;
+{        if ariSgmntPnt[0][inx] > NodeCount - 1 then
+          sngInterior := dblAngle
+        else
+          sngExterior := dblAngle;}
+        cpptQuadrant := FindQudrant(dblAngle);
+        sngQuadrantAngle := dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((BranchLength + 1.0) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((BranchLength + 1.0) * dblSine) * intPixelFactor;
+        BeginSegment.pntRadial.x := Species[intLftBrnch].EndSegment.pntRadial.x;
+        BeginSegment.pntRadial.y := Species[intLftBrnch].EndSegment.pntRadial.y;
+        EndSegment.pntRadial.x := BeginSegment.pntRadial.x + intAjacent;
+        EndSegment.pntRadial.y := BeginSegment.pntRadial.y + intOpposite;
+//        BeginSegment.int1stXNd := intHomeNode;
+//        if inx = 0 then
+//          BeginSegment.int2ndXNd := ariSgmntPnt[0][1]
+//        else
+//          BeginSegment.int2ndXNd := ariSgmntPnt[0][0];
+//        if ariSgmntPnt[0][inx] < SpeciesCount then
+//        begin
+//          EndSegment.int1stXNd := ariSgmntPnt[0][inx];
+//          EndSegment.int2ndXNd := ariSgmntPnt[0][inx];
+//        end;
+      end;
+    for inx := 0 to 1 do
+      for iny := 0 to 1 do
+        if ariSgmntPnt[inx][iny] < SpeciesCount then
+          ariSgmntPnt[inx][iny] := -1;
+    HiddenNodeName := Species[NodeCount].SpeciesName;
+//    if Species[NodeCount].EndSegment.int2ndXNd > Species[NodeCount].EndSegment.int1stXNd then
+//      HiddenNodeName := 'Node' + IntToStr(Species[NodeCount].EndSegment.int1stXNd) + '<|>' + IntToStr(Species[NodeCount].EndSegment.int2ndXNd)
+//    else
+//      HiddenNodeName := 'Node' + IntToStr(Species[NodeCount].EndSegment.int2ndXNd) + '<|>' + IntToStr(Species[NodeCount].EndSegment.int1stXNd);
+  end;
+end;
+
+procedure CreateNode(var intNd, int1stPnt, int2ndPnt: integer);
+var
+  intAjacent,
+  intOpposite: integer;
+  cpptQuadrant: CompassPnt;
+  sngQuadrantAngle: single;
+  dblCosine,
+  dblSine: double;
+begin
+  with TestTableForSpeciesData do
+//    if not IsEndNodeResolved(intNd) then
+    begin
+{      if int1stPnt > NodeCount - 1 then
+      begin
+        Species[int1stPnt].dblAngle := sngInterior + sngIntrrOffset;
+        if Species[int1stPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int1stPnt].dblAngle := sngInterior + sngHalfInterior;
+        sngInterior := Species[int1stPnt].dblAngle;
+      end
+      else
+      begin
+        Species[int1stPnt].dblAngle := sngExterior + sngExtrrOffset;
+        if Species[int1stPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int1stPnt].dblAngle := sngExterior + sngHalfAngle;
+        sngExterior := Species[int1stPnt].dblAngle;
+      end;}
+      Species[int1stPnt].dblAngle := Species[intNd].dblAngle - sngHalfAngle;
+      cpptQuadrant := FindQudrant(Species[int1stPnt].dblAngle);
+      sngQuadrantAngle := Species[int1stPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+      dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+      dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+      if dblCosine = dblZero then
+        if dblSine > dblZero then
+          dblSine := 1.0
+        else
+          dblSine := -1.0
+      else
+        if dblSine = 0.0 then
+          if dblCosine > dblZero then
+            dblCosine := 1.0
+           else
+             dblCosine := -1.0;
+      intAjacent := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+      intOpposite := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+      Species[int1stPnt].BeginSegment.pntRadial.x := Species[intNd].EndSegment.pntRadial.x;
+      Species[int1stPnt].BeginSegment.pntRadial.y := Species[intNd].EndSegment.pntRadial.y;
+      Species[int1stPnt].EndSegment.pntRadial.x := Species[int1stPnt].BeginSegment.pntRadial.x + intAjacent;
+      Species[int1stPnt].EndSegment.pntRadial.y := Species[int1stPnt].BeginSegment.pntRadial.y + intOpposite;
+//      Species[intNd].EndSegment.int1stXNd := int1stPnt;
+//      Species[int1stPnt].BeginSegment.int1stXNd := intNd;
+//      Species[int1stPnt].BeginSegment.int2ndXNd := int2ndPnt;
+      if int1stPnt < SpeciesCount then
+      begin
+//        Species[int1stPnt].EndSegment.int1stXNd := int1stPnt;
+//        Species[int1stPnt].EndSegment.int2ndXNd := int1stPnt;
+      end;
+{      if int2ndPnt > NodeCount - 1 then
+      begin
+        Species[int2ndPnt].dblAngle := sngInterior + sngIntrrOffset;
+        if Species[int2ndPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int2ndPnt].dblAngle := sngInterior + sngHalfInterior;
+        if Species[int2ndPnt].dblAngle = Species[int1stPnt].dblAngle then
+          Species[int2ndPnt].dblAngle := sngInterior - sngHalfInterior;
+        sngInterior := Species[int2ndPnt].dblAngle;
+      end
+      else
+      begin
+        Species[int2ndPnt].dblAngle := sngExterior + sngExtrrOffset;
+        if Species[int2ndPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int2ndPnt].dblAngle := sngExterior + sngHalfAngle;
+        if Species[int2ndPnt].dblAngle = Species[int1stPnt].dblAngle then
+          Species[int2ndPnt].dblAngle := sngExterior - sngHalfAngle;
+        sngExterior := Species[int2ndPnt].dblAngle;
+      end;}
+      Species[int2ndPnt].dblAngle := Species[intNd].dblAngle + sngHalfAngle;
+      cpptQuadrant := FindQudrant(Species[int2ndPnt].dblAngle);
+      sngQuadrantAngle := Species[int2ndPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+      dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+      dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+      if dblCosine = dblZero then
+        if dblSine > dblZero then
+          dblSine := 1.0
+        else
+          dblSine := -1.0
+      else
+        if dblSine = 0.0 then
+          if dblCosine > dblZero then
+            dblCosine := 1.0
+           else
+             dblCosine := -1.0;
+      intAjacent := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+      intOpposite := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+      Species[int2ndPnt].BeginSegment.pntRadial.x := Species[intNd].EndSegment.pntRadial.x;
+      Species[int2ndPnt].BeginSegment.pntRadial.y := Species[intNd].EndSegment.pntRadial.y;
+      Species[int2ndPnt].EndSegment.pntRadial.x := Species[int2ndPnt].BeginSegment.pntRadial.x + intAjacent;
+      Species[int2ndPnt].EndSegment.pntRadial.y := Species[int2ndPnt].BeginSegment.pntRadial.y + intOpposite;
+//      Species[intNd].EndSegment.int2ndXNd := int2ndPnt;
+//      Species[int2ndPnt].BeginSegment.int1stXNd := intNd;
+//      Species[int2ndPnt].BeginSegment.int2ndXNd := int1stPnt;
+      if int2ndPnt < SpeciesCount then
+      begin
+//        Species[int2ndPnt].EndSegment.int1stXNd := int2ndPnt;
+//        Species[int2ndPnt].EndSegment.int2ndXNd := int2ndPnt;
+      end;
+    end
+{    else
+      if not IsBeginNodeResolved(intNd) then
+      begin
+        if Species[intNd].dblAngle > kSemiCircle then
+          Species[int1stPnt].dblAngle := Species[intNd].dblAngle - dblHalfAngle - kSemiCircle
+        else
+          Species[int1stPnt].dblAngle := Species[intNd].dblAngle - dblHalfAngle + kSemiCircle;
+        cpptQuadrant := FindQudrant(Species[int1stPnt].dblAngle);
+        sngQuadrantAngle := Species[int1stPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+        Species[int1stPnt].BeginSegment.pntRadial.x := Species[intNd].BeginSegment.pntRadial.x;
+        Species[int1stPnt].BeginSegment.pntRadial.y := Species[intNd].BeginSegment.pntRadial.y;
+        Species[int1stPnt].EndSegment.pntRadial.x := Species[int1stPnt].BeginSegment.pntRadial.x + intAjacent;
+        Species[int1stPnt].EndSegment.pntRadial.y := Species[int1stPnt].BeginSegment.pntRadial.y - intOpposite;
+        Species[intNd].BeginSegment.int1stXNd := int1stPnt;
+        Species[int1stPnt].BeginSegment.int1stXNd := intNd;
+        Species[int1stPnt].BeginSegment.int2ndXNd := int2ndPnt;
+        if int1stPnt < SpeciesCount then
+        begin
+          Species[int1stPnt].EndSegment.int1stXNd := int1stPnt;
+          Species[int1stPnt].EndSegment.int2ndXNd := int1stPnt;
+        end;
+        Species[int2ndPnt].dblAngle := Species[int1stPnt].dblAngle + dblAngl;
+        sngQuadrantAngle := Species[int2ndPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+        Species[int2ndPnt].BeginSegment.pntRadial.x := Species[intNd].BeginSegment.pntRadial.x;
+        Species[int2ndPnt].BeginSegment.pntRadial.y := Species[intNd].BeginSegment.pntRadial.y;
+        Species[int2ndPnt].EndSegment.pntRadial.x := Species[int2ndPnt].BeginSegment.pntRadial.x + intAjacent;
+        Species[int2ndPnt].EndSegment.pntRadial.y := Species[int2ndPnt].BeginSegment.pntRadial.y - intOpposite;
+        Species[intNd].BeginSegment.int2ndXNd := int2ndPnt;
+        Species[int2ndPnt].BeginSegment.int1stXNd := intNd;
+        Species[int2ndPnt].BeginSegment.int2ndXNd := int1stPnt;
+        if int2ndPnt < SpeciesCount then
+        begin
+          Species[int2ndPnt].EndSegment.int1stXNd := int2ndPnt;
+          Species[int2ndPnt].EndSegment.int2ndXNd := int2ndPnt;
+        end;
+      end;}
+end;}
+
+{function intSgndMgntd(const dblSinCosVl: double; const intMnLngth: integer): integer;
+begin
+  if dblSinCosVl < dblZero then
+    Result := -1 * intMnLngth
+  else
+    Result := intMnLngth;
+end;}

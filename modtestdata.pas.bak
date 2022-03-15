@@ -1,0 +1,3595 @@
+// Module to load measurement and binary data to grid and record structures
+unit modTestData;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, Forms, Controls, StdCtrls, ComCtrls, Grids, Dialogs, Graphics, modDataTypes;
+
+procedure AssignBracketRange(const StrtPnt: TPoint; const W, H: integer);
+procedure AssignTplgyOnlyRange(const StrtPnt: TPoint; const W, H: integer);
+procedure AssignRadialRange(const StrtPnt: TPoint; const W, H: integer);
+procedure ClearBinariesMeasurements(const boolNotExit: boolean);
+procedure LoadMeasuremntData(const strFileName: string; var prgBar: TProgressBar; var strgrdTD: TStringGrid);
+procedure LoadBinaryData(const strFileName: string; var prgBar: TProgressBar; var strgrdTD: TStringGrid; const BinaryType: TBinaryDataType);
+procedure BuildDifferenceMatrix(var prgBar: TProgressBar; var MM: TMeasurementMatrix; var DM: TDifferenceMatrix; const boolShowBar: boolean);
+procedure BuildMeasurementDistanceMatrix(var prgBar: TProgressBar; var mmoRslts: TMemo);
+procedure BuildMatchingMatrix(var prgBar: TProgressBar; var BM: TBinaryMatix; var MM: TMatchingMatrix; const boolShowBar: boolean);
+procedure BuildBinaryDistanceMatrix(var prgBar: TProgressBar; var mmoRslts: TMemo);
+procedure BuildBSDistanceMatrix(var prgBar: TProgressBar; const intRplcts: integer);
+procedure InitialDataTableProp;
+procedure BuildFullDMatrix;
+procedure BuildBSFullDMatrix(const intBootStrapPage: integer);
+procedure BuildQMatrix;
+procedure MakeABranch(var dblLowestValue, dblSum: double; var inxarDstcn: TDistanceIndex; var ColX, RowY: integer; var strError: string);
+procedure FindBranches(const intRplcts: Integer; var strError: string);
+function DegToRad(const extDegrees: Extended): Extended;
+function intAllNdSgmntRslvd(const intNd: integer): integer;
+procedure FindPoints(const intNode: integer; var intFirst, intSecond: integer);
+procedure FindFinalPoints(const intNode: integer; var intFirst, intSecond: integer);
+function dblFindMaxLengths: double;
+function dblFindMinLengths: double;
+function intMaxPixelFactor(const wrdDsplyTr: word; var dblScale: double): integer;
+function FindQudrant(sngAngle: single): CompassPnt;
+procedure CreateNode(var intNd, int1stPnt, int2ndPnt: integer);
+procedure CreateRadialGraph;
+procedure ShowGridTreeView;
+function  intAssignParentNodes(const intNL: integer): integer;
+procedure MakeNewickNode(const intNL, intOffset: integer; var strNewick: string);
+procedure MakeNewickFormat(var mmoNwckFrmt: TMemo);
+procedure AssignReplicates(const intBootStraps: integer; var strgrdRplcts: TStringGrid);
+function dblSplitLength(const dblFctrd: double): double;
+procedure MakeInteriorNodeFile(const strFileName: string);
+procedure DisplayBootStrapPageBnry(const intIndex: integer);
+procedure DisplayBootStrapPageMsrmnt(const intIndex: integer);
+procedure CheckForReplicates(const inRplcts: integer; var cbxItems, cbxFDMDsply: TComboBox);
+function boolMoreNodeLevels(const intLevel: integer): boolean;
+procedure CreateBracketTree(var HomeVrtclPosition: TVrtclPosition; var intScaleTree: integer; var dblScaleValue: double);
+procedure CreateTopologyOnlyTree;
+procedure SaveReplicateDataFile(const strFlNm: string; const intRplct: integer);
+procedure SaveDMReplicateFile(const strFlNm: string; const intRplct: integer);
+procedure SaveMegaFormatFile(const strFlNm: string);
+
+implementation
+
+uses
+  modpimd_b, modCalcErrs;
+
+var
+  dblarDstcn: array[0..2] of double;
+  dblarBrnchLngths: TDoubleArray;
+  arinxSpcsQM: TArrayInteger;
+  iarQIndex: TBSQIndex;
+
+procedure AssignBracketRange(const StrtPnt: TPoint; const W, H: integer);
+begin
+  with Origin.ttoBracket do
+  begin
+    GraphOrigin := StrtPnt;
+    Width := W;
+    Height := H;
+  end;
+end;
+
+procedure AssignTplgyOnlyRange(const StrtPnt: TPoint; const W, H: integer);
+begin
+ with Origin.ttoTplgyOnly do
+ begin
+   GraphOrigin := StrtPnt;
+   Width := W;
+   Height := H;
+ end;
+end;
+
+procedure AssignRadialRange(const StrtPnt: TPoint; const W, H: integer);
+begin
+  with Origin.ttoRadial do
+  begin
+    GraphOrigin := StrtPnt;
+    Width := W;
+    Height := H;
+  end;
+end;
+
+function strErrorHdrFtr(const strTitle, strPrcssTitle: string; const boolBegin: boolean): string;
+begin
+  Result := strRepeat('-', 20);
+  if boolBegin then
+    Result := Result + 'Begin Title: '
+  else
+    Result := Result + 'End Title: ';
+  if strTitle = '' then
+    Result := Result + TestTableForSpeciesData.SpeciesTitle + ', '
+  else
+    Result := Result + strTitle + ', ';
+  Result := Result + strPrcssTitle + ' Errors' + strRepeat('-', 20);
+end;
+
+// Clear data from species binary/measurement records
+procedure ClearBinariesMeasurements(const boolNotExit: boolean);
+begin
+  try
+    if Length(DifferenceMatrix) > 0 then
+      SetLength(DifferenceMatrix, 0, 0, 0);
+    if Length(DistanceMatrix) > 0 then
+      SetLength(DistanceMatrix, 0, 0);
+    if Length(darBSDistanceMatrix) > 0 then
+      SetLength(darBSDistanceMatrix, 0, 0, 0);
+    if Length(QMatrix) > 0 then
+      SetLength(QMatrix, 0);
+    if Length(iarReplicates) > 0 then
+      SetLength(iarReplicates, 0);
+    if Length(darBtStrpRwDtMsrmnt) > 0 then
+      SetLength(darBtStrpRwDtMsrmnt, 0);
+    if Length(carBinary) > 0 then
+      SetLength(carBinary, 0);
+    if Length(arstrNodeNames) > 0 then
+      SetLength(arstrNodeNames, 0);
+    if Length(arryinxBracket) > 0 then
+      SetLength(arryinxBracket, 0);
+    if Length(arstrConnected) > 0 then
+      SetLength(arstrConnected, 0);
+    with TestTableForSpeciesData do
+    begin
+      wrdDataType := wrdNoType;
+      SpeciesTitle := '';
+      SpeciesCount := 0;
+      TestCount := 0;
+      TierCount := 0;
+      ErrorCount := 0;
+      NodeCount := 0;
+      LastNode := 0;
+      inxQ := 0;
+      HiddenNodeName := '';
+      HiddenPercent := dblZero;
+      HiddenMatches := 0;
+      if Length(TestTitle) > 0 then
+        SetLength(TestTitle, 0);
+      if Length(Measurement) > 0 then
+        SetLength(Measurement, 0, 0);
+      if Length(Binary) > 0 then
+        SetLength(Binary, 0, 0);
+      if Length(inxSpcsQM) > 0 then
+        SetLength(inxSpcsQM, 0);
+      if Length(IsActive) > 0 then
+        SetLength(IsActive, 0);
+      if Length(QIndex) > 0 then
+        SetLength(QIndex, 0);
+      if Length(BSPercent) > 0 then
+        SetLength(BSPercent, 0);
+      if Length(iarRplctMtchs) > 0 then
+        SetLength(iarRplctMtchs, 0);
+      if boolNotExit then
+        if Species <> nil then
+          if Length(Species) > 0 then
+            SetLength(Species, 0)
+          else
+        else
+      else
+      begin
+        strlstCalcErrs.Free;
+        strlstArrayErrs.Free;
+        strlstDstncMtrx.Free;
+      end;
+    end;
+    boolGraphInitial := True;
+  except
+    on E:exception do
+      MessageDlg(E.Message, mtError, [mbOK], 0);
+  end;
+//  if not boolNotExit then
+//    MessageDlg('Clearing of data succesful.  Exit will proceed.', mtInformation, [mbOK], 0);
+end;
+
+{
+Place data into the measrement records and data grid that was read into the memo field.  Place error
+values in the grid with "<< >>" around the data and minus and number to obtain offending first digit.
+
+Parameters:
+   strFileName -> Name of data file
+   prgBar -> Progress bar to show percentge of completion
+   strgrdTD -> String grid to show data results for errors
+}
+procedure LoadMeasuremntData(const strFileName: string; var prgBar: TProgressBar; var strgrdTD: TStringGrid);
+var
+  MD: TStrings;           // Measurment data string list
+  intComma,               // Position of first comma in string
+  intCommaPos,            // Position of later commas in original full string
+  int1stChar,             // Position of first character in data field
+  intColErr,              // Column of first error in grid
+  intRowErr,              // Row of first error in grid
+  intLength,              // Length of string line data
+  inxSpecies,             // Indices of species
+  inxTests: integer;      // Indices of tests
+  wrdError: word;         // Error code reported by Val procedure which is the invalid digit position
+  strLineData: string;    // String for the cuurent line data read from memeo field
+  boolShowError: boolean; // Boolean to show error when true
+begin
+  boolShowError := False;
+  with TestTableForSpeciesData do
+  try
+    MD := TStringList.Create;
+    try
+      MD.LoadFromFile(strFileName);
+      inxQ := 0;                         // Indices for QMatrix
+      strLineData := MD[0];              // Read memo string into string variable
+      intLength := Length(strLineData);  // Assign string length
+      SpeciesCount := MD.Count - 1;      // Count of memo with title line removed
+      NodeCount := SpeciesCount;
+      LastNode := 0;
+      TestCount := 1;
+      inxTests := 0;                     // Used with zero base array
+      ErrorCount := 0;                   // Clear error counter
+      prgBar.Max := 100;
+      prgBar.Position := 0;
+      with strgrdTD do
+      begin
+        RowCount := SpeciesCount + 1;    // Set rows to number of species + 1
+        ColCount := TestCount + 1;       // Set columns to 2 prior to column counting
+      end;
+      SetLength(TestTitle, TestCount);
+      SetLength(Species, 2 * SpeciesCount - 1);
+      SetLength(IsActive, 2 * SpeciesCount - 2);
+      SetLength(QIndex, 2 * SpeciesCount - 2);
+      for inxSpecies := 0 to 2 * SpeciesCount - 3 do                                              // For next through species
+      begin
+        Species[inxSpecies] := EmptySpecies;
+        IsActive[inxSpecies] := True;
+        QIndex[inxSpecies] := 0;
+      end;
+      intComma := Pos(',', strLineData); // Find first comma
+      intCommaPos := intComma;           // Assign comma accumulator
+      int1stChar := 1;                   // Point to first field
+      if intComma > 1 then               // Test to see if it has any commas
+                                         //        v it1stCharPos=8
+                                         //              v intCommaPos=14
+      begin                              //  xxxxxx,yyyyyy,zzzzzzz,aaaaaaaa  <--- strLineData
+                                         //  Copy--|      ^ intComma=7      | intCommaPos-int1stChar=6
+                                         // |-------------------------------| End of string intLength=27
+        SpeciesTitle := Copy(strLineData, int1stChar, intCommaPos - int1stChar);  // Assign species title field
+        strgrdTD.Cells[0, 0] := SpeciesTitle;                                     // Put title in grid
+        int1stChar := intComma + 1;                                               // Find start of next string field
+        intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos)); // Find next comma
+        intCommaPos := intCommaPos + intComma;                                        // Accumulate comma position to work with full string
+        while intComma > 0 do                                                         // Test for commas left in string
+        begin
+          if TestTitle[inxTests] <> '' then
+            TestTitle[inxTests] := TestTitle[inxTests] + Copy(strLineData, int1stChar, intCommaPos - int1stChar) // Assign copy of string and keep previous test to Test title
+          else
+            TestTitle[inxTests] := Copy(strLineData, int1stChar, intCommaPos - int1stChar); // Assign copy of string to Test title
+          strgrdTD.Cells[inxTests + 1, 0] := TestTitle[inxTests];                         // Assign copy of string to grid
+          int1stChar := intCommaPos + 1;                                                  // Prepare to search for next comma
+          intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));   // Find comma
+          intCommaPos := intCommaPos + intComma;                                          // Accumulate comma position for copy extraction
+          inxTests := inxTests + 1;                                                       // Increment test
+          TestCount := inxTests + 1;                                                      // Increment test count
+          SetLength(TestTitle, TestCount);                                                // Extend length of Test titles
+          strgrdTD.ColCount := TestCount + 1;                                              // Extend grid one column
+        end;
+        if int1stChar <= intLength then                                                   // Test if int1stChar before end of sring
+        begin
+          TestTitle[inxTests] := Copy(strLineData, int1stChar, intLength - int1stChar + 1);  // Add last Test title in line
+          strgrdTD.Cells[inxTests + 1, 0] := TestTitle[inxTests];                            // Add title to grid
+        end;
+        prgBar.Max := strgrdTD.ColCount * strgrdTD.RowCount;
+        prgBar.Position := strgrdTD.ColCount;
+      end;
+      SetLength(Measurement, SpeciesCount, TestCount);
+      SetLength(arryinxBracket, 1);
+      SetLength(arryinxBracket[0], SpeciesCount);
+      for inxSpecies := 0 to SpeciesCount - 1 do                                              // For next through species
+        with Species[inxSpecies] do                                                           // Use Species array qualifier
+        begin
+          Leaves := 1;
+          inxBracket := kintInvalidBracket;
+          arryinxBracket[0, inxSpecies] := kintInvalidBracket;
+          strLineData := MD[inxSpecies + 1];                                // Read memo string into string variable
+          intLength := Length(strLineData);                                 // Assign string length
+          intComma := Pos(',', strLineData);                                // Find first comma
+          intCommaPos := intComma;                                          // Assign comma accumulator
+          int1stChar := 1;                                                  // Point to first field
+          SpeciesName := Copy(strLineData, 1, intCommaPos - int1stChar);    // Assign species name field
+          strgrdTD.Cells[0, inxSpecies + 1] := SpeciesName;                 // Assign species name to grid
+          inxTests := 0;                                                    // Set Test index to zero
+          prgBar.Position := prgBar.Position + 1;
+          int1stChar := intCommaPos + 1;                                    // Point to first field
+          intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));  // Find firsr comma
+          intCommaPos := intCommaPos + intComma;
+          while intComma > 0 do                                                          // Test for commas left in string
+          begin
+            if inxTests + 1 > TestCount then
+            begin
+              ErrorCount := ErrorCount + 1;                                 // Increment error counter
+              if ErrorCount = 1 then
+              begin
+                boolShowError := True;
+                strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', True));
+              end;
+              strlstCalcErrs.Add(IntToStr(TestCount) + ' Tests were expected and ' + IntToStr(inxTests + 1) + ' tests were processed for species ' + SpeciesName + '.');
+              break;
+            end;
+            Val(Copy(strLineData, int1stChar, intCommaPos - int1stChar), Measurement[inxSpecies, inxTests], wrdError);  // Convert measurement from string to double
+            if wrdError = 0 then
+              strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := Copy(strLineData, int1stChar, intCommaPos - int1stChar)   // Add measurement to grid.
+            else
+            begin
+              ErrorCount := ErrorCount + 1;                                                                                                                        // Increment error counter
+              strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := '<<' + Copy(strLineData, int1stChar, intCommaPos - int1stChar) + '>>@' + IntToStr(wrdError);       // Add measurment to grid with error data.
+              if ErrorCount = 1 then
+              begin
+                boolShowError := True;
+                intColErr := inxTests + 1;
+                intRowErr := inxSpecies + 1;
+                rctSelectedCell.Left := intColErr;
+                rctSelectedCell.Top := intRowErr;
+                rctSelectedCell.Right := intColErr;
+                rctSelectedCell.Bottom := intRowErr;
+                strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', True));
+              end;
+              strlstCalcErrs.Add('Test: ' + TestTitle[inxTests] + ', Species: ' + Species[inxSpecies].SpeciesName + ', and Data: ' + Copy(strLineData, int1stChar, intCommaPos - int1stChar + 1));
+              Measurement[inxSpecies, inxTests] := kInvalidData;                                                                                                             // Place invalid data in measurement data.
+            end;
+            int1stChar := intCommaPos + 1;                                                                                                                       // Point to start of next field
+            intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));                                                                        // Find next comma
+            intCommaPos := intCommaPos + intComma;                                                                                                               // Assign comma accumulator
+            prgBar.Position := prgBar.Position + 1;
+            inxTests := inxTests + 1;                                                                                                                            // Increment tests
+          end;
+          if int1stChar <= intLength then                                                                                                                        // Add last measurement in line
+          begin
+            if inxTests + 1 > TestCount then
+            begin
+              ErrorCount := ErrorCount + 1;                                                                                                                      // Increment error counter
+              if ErrorCount = 1 then
+              begin
+                strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', True));
+                boolShowError := True;
+              end;
+              strlstCalcErrs.Add(IntToStr(TestCount) + ' Tests were expected and ' + IntToStr(inxTests + 1) + ' tests were processed for species ' + SpeciesName + '.');
+            end
+            else
+            begin
+              Val(Copy(strLineData,  int1stChar, intLength - int1stChar + 1), Measurement[inxSpecies, inxTests], wrdError);                                        // Convert measurement from string to double
+              if wrdError = 0 then                                                                                                                                 // Test for invalid data
+                strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := Copy(strLineData, int1stChar, intLength - int1stChar + 1)
+              else                                                                                                                                                 // Add measurment to grid
+              begin
+                ErrorCount := ErrorCount + 1;                                                                                                                      // Increment error counter
+                strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := '<<' + Copy(strLineData, int1stChar, intLength - int1stChar + 1) + '>>@' + IntToStr(wrdError);     // Add measurment to grid with error data.
+                if ErrorCount = 1 then
+                begin
+                  boolShowError := True;
+                  intColErr := inxTests + 1;
+                  intRowErr := inxSpecies + 1;
+                  rctSelectedCell.Left := intColErr;
+                  rctSelectedCell.Top := intRowErr;
+                  rctSelectedCell.Right := intColErr;
+                  rctSelectedCell.Bottom := intRowErr;
+                  strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', True));
+                end;
+                strlstCalcErrs.Add('Test: ' + TestTitle[inxTests] + ', Species: ' + Species[inxSpecies].SpeciesName + ', and Data: ' + Copy(strLineData, int1stChar, intCommaPos - int1stChar + 1));
+                Measurement[inxSpecies, inxTests] := kInvalidData;  // Place invalid data in measurement data.
+              end;
+            end;
+            prgBar.Position := prgBar.Position + 1;
+          end;
+          if inxTests + 1 < TestCount then
+          begin
+            ErrorCount := ErrorCount + 1;                           // Increment error counter
+            if ErrorCount = 1 then
+            begin
+              strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', True));
+              boolShowError := True;
+            end;
+            strlstCalcErrs.Add(IntToStr(TestCount) + ' Tests were expected and ' + IntToStr(inxTests + 1) + ' tests were processed for species ' + SpeciesName + '.');
+          end;
+        end;
+    finally
+      MD.Free;
+      strgrdTD.AutoSizeColumns;
+    end;
+  except
+    on E:exception do
+    begin
+      ErrorCount := ErrorCount + 1;                                // Increment error counter
+      if ErrorCount = 1 then
+      begin
+        strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', True));
+        boolShowError := True;
+      end;
+      strlstCalcErrs.Add(E.Message);
+      MessageDlg(E.Message, mtError, [mbOK], 0);                   //
+    end;
+  end;
+  if boolShowError then
+  begin
+    strlstCalcErrs.Add(strErrorHdrFtr('', 'Measurement', False));
+    modCalcErrs.frmCalculatedErrors.Show;
+    frmPIMD_B.mnuShowCalcErrs.Enabled := True;
+  end;
+end;
+
+{
+Place data into the binary data records and data grid that was read into the memo field.  Place error
+values in the grid with "** **" around the data.
+
+Parameters:
+   strFileName -> Name of data file
+   strgrdTD -> String to show data results for errors
+   BinaryType -> Binary data type array
+   prgBar -> Progress bar to show percentge of completion
+}
+procedure LoadBinaryData(const strFileName: string; var prgBar: TProgressBar; var strgrdTD: TStringGrid; const BinaryType: TBinaryDataType);
+var
+  BD: TStrings;           // Binary -/+ or 0/1 data string list
+  intComma,               // Position of first comma in string
+  intCommaPos,            // Position of later commas in original full string
+  int1stChar,             // Position of first character in data field
+  intColErr,              // Column of first error in grid
+  intRowErr,              // Row of first error in grid
+  intLength,              // Length of string line data
+  inxSpecies,             // Indices of species
+  inxTests: integer;      // Indices of tests
+  strBinaryType,
+  strLineData: string;    // String for the cuurent line data read from memo field
+  boolShowError: boolean; // Boolean to show error when true
+begin
+  boolShowError := False;
+  with TestTableForSpeciesData do
+  try
+    BD := TStringList.Create;
+    try
+      BD.LoadFromFile(strFileName);
+      inxQ := 0;                         // Indices for QMatrix
+      strLineData := BD[0];              // Read memo string into string variable
+      intLength := Length(strLineData);  // Assign string length
+      SpeciesCount := BD.Count - 1;      // Count of memo with title line removed
+      if '-' in BinaryType then
+        strBinaryType := '-/+'
+      else
+        strBinaryType := '0/1';
+      NodeCount := SpeciesCount;
+      LastNode := 0;
+      TestCount := 1;
+      inxTests := 0;                  // Used with zero base array
+      ErrorCount := 0;                // Clear error counter
+      prgBar.Max := 100;
+      prgBar.Position := 0;
+      with strgrdTD do
+      begin
+        RowCount := SpeciesCount + 1;       // Set rows to number of species + 1
+        ColCount := TestCount + 1;          // Set columns to 2 prior to column counting
+      end;
+      SetLength(TestTitle, TestCount);
+      SetLength(Species, 2 * SpeciesCount - 1);
+      SetLength(IsActive, 2 * SpeciesCount - 2);
+      SetLength(QIndex, 2 * SpeciesCount - 2);
+      for inxSpecies := 0 to 2 * SpeciesCount - 3 do // For next through species
+      begin
+        Species[inxSpecies] := EmptySpecies;
+        IsActive[inxSpecies] := True;
+        QIndex[inxSpecies] := 0;
+      end;
+      strLineData := BD[0];                 // Read memo string into string variable
+      intLength := Length(strLineData);     // Set columns to 2 prior to column counting
+      intComma := Pos(',', strLineData);    // Find first comma
+      intCommaPos := intComma;              // Assign comma accumulator
+      int1stChar := 1;                      // Point to first field
+      if intComma > 1 then                  // Test to see if it has any commas
+      begin
+        SpeciesTitle := Copy(strLineData, int1stChar, intCommaPos - int1stChar);          // Assign species title field
+        strgrdTD.Cells[0, 0] := SpeciesTitle;                                             // Put title in grid
+        int1stChar := intComma + 1;                                                       // Find start of next field
+        intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));     // Find next comma
+        intCommaPos := intCommaPos + intComma;                                            // Accumulate position to work with full string
+        while intComma > 0 do                                                             // Test for commas left in string
+        begin
+          TestTitle[inxTests] := Copy(strLineData, int1stChar, intCommaPos - int1stChar); // Assign copy of string to Test title
+          strgrdTD.Cells[inxTests + 1, 0] := TestTitle[inxTests];                         // Assign copy of string to grid
+          int1stChar := intCommaPos + 1;                                                  // Prepare to search next comma
+          intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));   // Find comma
+          intCommaPos := intCommaPos + intComma;                                          // Accumulate comma position for copy extraction
+          inxTests := inxTests + 1;                                                       // Increment tests
+          TestCount := inxTests + 1;                                                      // Increment test count
+          SetLength(TestTitle, TestCount);                                                // Extend length of Test titles
+          strgrdTD.ColCount := TestCount + 1;                                             // Extend grid column
+        end;
+        if int1stChar <= intLength then                                                   // Test if int1stChar before end of string
+        begin
+          TestTitle[inxTests] := Copy(strLineData, int1stChar, intLength - int1stChar + 1);   // Add last test tile in line
+          strgrdTD.Cells[inxTests + 1, 0] := TestTitle[inxTests];                             // Add title to grid
+        end;
+        prgBar.Max := strgrdTD.ColCount * strgrdTD.RowCount;
+        prgBar.Position := strgrdTD.ColCount;
+      end;
+      SetLength(Binary, SpeciesCount, TestCount);
+      SetLength(arryinxBracket, 1);
+      SetLength(arryinxBracket[0], SpeciesCount);
+      for inxSpecies := 0 to SpeciesCount - 1 do                                              // For next through species
+        with Species[inxSpecies] do
+        begin
+          Leaves := 1;
+          inxBracket := kintInvalidBracket;
+          arryinxBracket[0, inxSpecies] := kintInvalidBracket;
+          strLineData := BD[inxSpecies + 1];                                                  // Read memo string intostring variable
+          intLength := Length(strLineData);
+          intComma := Pos(',', strLineData);                                                  // Find first comma
+          intCommaPos := intComma;                                                            // Assign comma accumulator
+          int1stChar := 1;                                                                    // Point to first field position
+          SpeciesName := Copy(strLineData, 1, intCommaPos - int1stChar);                      // Assign species name field
+          strgrdTD.Cells[0, inxSpecies + 1] := SpeciesName;                                   // Assign species name to grid
+          inxTests := 0;                                                                      // Set Test index to zero
+          prgBar.Position := prgBar.Position + 1;
+          int1stChar := intCommaPos + 1;                                                      // Point to first field
+          intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));       // Find next comma
+          intCommaPos := intCommaPos + intComma;                                              // Assign comma accumulator
+          while intComma > 0 do                                                               // Test for a comma left in string
+          begin
+            if inxTests + 1 > TestCount then
+            begin
+              ErrorCount := ErrorCount + 1;                                                                                                                      // Increment error counter
+              if ErrorCount = 1 then
+              begin
+                strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, True));
+                boolShowError := True;
+              end;
+              strlstCalcErrs.Add(IntToStr(TestCount) + ' Tests were expected and ' + IntToStr(inxTests + 1) + ' tests were processed for species ' + SpeciesName + '.');
+              break;
+            end;
+            if strLineData[int1stChar] in BinaryType then                                     // Test if data is valid
+            begin
+              Binary[inxSpecies, inxTests] := strLineData[int1stChar];                        // Assign data to binary result
+              strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := Binary[inxSpecies, inxTests];   // Assign data to grid
+            end
+            else
+            begin
+              Binary[inxSpecies, inxTests] := '*';                                                        // Assign error data to binary result
+              strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := kInvalidBinary + strLineData[int1stChar] + kInvalidBinary;  // Assign error data to grid
+              ErrorCount := ErrorCount + 1;                                                     // Increment error counter
+              if ErrorCount = 1 then
+              begin
+                intColErr := inxTests + 1;
+                intRowErr := inxSpecies + 1;
+                rctSelectedCell.Left := intColErr;
+                rctSelectedCell.Top := intRowErr;
+                rctSelectedCell.Right := intColErr;
+                rctSelectedCell.Bottom := intRowErr;
+                strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, True));
+                boolShowError := True;
+              end;
+              strlstCalcErrs.Add('Test: ' + TestTitle[inxTests] + ', Species: ' + Species[inxSpecies].SpeciesName + ', and Data: ' + strLineData[int1stChar]);
+            end;
+            int1stChar := intCommaPos + 1;                                                    // Point to first field
+            intComma := Pos(',', Copy(strLineData, int1stChar, intLength - intCommaPos));     // Find next comma
+            intCommaPos := intCommaPos + intComma;                                            // Assign comma accumulator
+            inxTests := inxTests + 1;                                                         // Increment inxTest
+            prgBar.Position := prgBar.Position + 1;
+          end;
+          if int1stChar <= intLength then                                                     // Test if int1stChar before end of string
+            if inxTests + 1 > TestCount then
+            begin
+              ErrorCount := ErrorCount + 1;                                                                                                                      // Increment error counter
+              if ErrorCount = 1 then
+              begin
+                strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, True));
+                boolShowError := True;
+              end;
+              strlstCalcErrs.Add(IntToStr(TestCount) + ' Tests were expected and ' + IntToStr(inxTests + 1) + ' tests were processed for species ' + SpeciesName + '.');
+            end
+            else
+            begin
+              if strLineData[intLength] in BinaryType then                                       // Test if data is valid
+              begin
+                Binary[inxSpecies, inxTests] := strLineData[intLength];                          // Assign data to binary result
+                strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := Binary[inxSpecies, inxTests];    // Assign data to grid
+              end
+              else
+              begin
+                Binary[inxSpecies, inxTests] := '*';                                                        // Assign error data to binary result
+                strgrdTD.Cells[inxTests + 1, inxSpecies + 1] := kInvalidBinary + strLineData[intLength] + kInvalidBinary;  // Assign error data to grid
+                ErrorCount := ErrorCount + 1;                                                     // Increment error counter
+                if ErrorCount = 1 then
+                begin
+                  intColErr := inxTests + 1;
+                  intRowErr := inxSpecies + 1;
+                  rctSelectedCell.Left := intColErr;
+                  rctSelectedCell.Top := intRowErr;
+                  rctSelectedCell.Right := intColErr;
+                  rctSelectedCell.Bottom := intRowErr;
+                  strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, True));
+                  boolShowError := True;
+                end;
+                strlstCalcErrs.Add('Test: ' + TestTitle[inxTests] + ', Species: ' + Species[inxSpecies].SpeciesName + ', and Data: ' + strLineData[int1stChar]);
+              end;
+            end;
+          prgBar.Position := prgBar.Position + 1;
+          if inxTests + 1 < TestCount then
+          begin
+            ErrorCount := ErrorCount + 1;                                   // Increment error counter
+            if ErrorCount = 1 then
+            begin
+              strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, True));
+              boolShowError := True;
+            end;
+            strlstCalcErrs.Add(IntToStr(TestCount) + ' Tests were expected and ' + IntToStr(inxTests + 1) + ' tests were processed for species ' + SpeciesName + '.');
+          end;
+        end;
+    finally
+      BD.Free;
+      strgrdTD.AutoSizeColumns;
+    end;
+  except
+    on E:exception do
+    begin
+      ErrorCount := ErrorCount + 1;                    // Increment error counter
+      if ErrorCount = 1 then
+      begin
+        strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, True));
+        boolShowError := True;
+      end;
+      strlstCalcErrs.Add(E.Message);
+      MessageDlg(E.Message, mtError, [mbOK], 0);       //
+    end;
+  end;
+  if boolShowError then
+  begin
+    frmPIMD_B.mnuShowCalcErrs.Enabled := True;
+    strlstCalcErrs.Add(strErrorHdrFtr('', 'Binary ' + strBinaryType, False));
+    modCalcErrs.frmCalculatedErrors.Show;
+  end;
+end;
+
+{
+Build difference matrix for species matching remaining species in test column.
+Matrix has the form top species in books, remaining species in rows, and tests in columns.
+The difference is first species with deifference against other remaining species.
+Arrays: MM = Matching Matrix and DM = Difference Matrix
+}
+procedure BuildDifferenceMatrix(var prgBar: TProgressBar; var MM: TMeasurementMatrix; var DM: TDifferenceMatrix; const boolShowBar: boolean);
+var
+  inxSpecies,             // Indices of species
+  inxNextSpecies,         // Indices of different species
+  inxTests: integer;      // Indices of tests
+
+begin
+  with TestTableForSpeciesData do
+  begin
+    prgBar.Position := 0;
+    prgBar.Max := (SpeciesCount - 1) * (SpeciesCount - 1) * (TestCount - 1) + 1;
+    SetLength(DM, SpeciesCount - 1, SpeciesCount - 1, TestCount);
+    for inxSpecies := 0 to SpeciesCount - 2 do
+      for inxNextSpecies := inxSpecies + 1 to SpeciesCount - 1 do
+        for inxTests := 0 to TestCount - 1 do
+        begin
+          DM[inxSpecies, inxNextSpecies - 1, inxTests] := Abs(MM[inxSpecies ,inxTests] - MM[inxNextSpecies, inxTests]);
+          if boolShowBar then
+            prgBar.Position := prgBar.Position + 1;
+        end;
+  end;
+end;
+
+procedure AssignMeasurementDistanceMatrix(var prgBar: TProgressBar; var DM: TDifferenceMatrix; var DX: TDistanceMatrix; const boolShowBar: boolean);
+var
+  inxSpecies,             // Indices of species
+  inxNextSpecies,         // Indices of remaining species
+  inxTests: integer;      // Indices of tests
+  dblCount,               // Test count double precision
+  dblSum: double;         // Sum of matches in a double number
+  inx,
+  iny: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    dblCount := TestCount;
+    for inxSpecies := 0 to SpeciesCount - 2 do
+      for inxNextSpecies := inxSpecies + 1 to SpeciesCount - 1 do
+      begin
+        dblSum := dblZero;
+        for inxTests := 0 to TestCount - 1 do
+        begin
+          dblSum :=  dblSum + DM[inxSpecies, inxNextSpecies - 1, inxTests];
+          if boolShowBar then
+            prgBar.Position := prgBar.Position + 1;
+        end;
+        DX[inxSpecies, inxNextSpecies] := dblSum / dblCount;
+      end;
+    for inx := 0 to SpeciesCount - 1 do
+      DX[inx, inx] := dblZero;
+    for iny := 0 to SpeciesCount - 2 do
+      for inx := iny + 1 to SpeciesCount - 1 do
+        DX[inx, iny] := DX[iny, inx];
+  end;
+end;
+
+{
+Build distant matrix from averaging diffference matrix values.
+}
+procedure BuildMeasurementDistanceMatrix(var prgBar: TProgressBar; var mmoRslts: TMemo);
+var
+  inxSpecies,              // Indices of species
+  inxNextSpecies: integer; // Indices of different species
+  strWork: string;         // Working string to build memo line
+begin
+  with TestTableForSpeciesData do
+  begin
+    SetLength(DistanceMatrix, SpeciesCount, SpeciesCount);
+    AssignMeasurementDistanceMatrix(prgBar, DifferenceMatrix, DistanceMatrix, True);
+    strlstDstncMtrx.Clear;
+    strWork := Speciestitle + ',';
+    for inxSpecies := 0 to SpeciesCount - 1 do
+    begin
+      Species[inxSpecies].VrtclPosition.intVrtclLngth := 0;
+      Species[inxSpecies].VrtclPosition.intVrtclSpc := 0;
+      Species[inxSpecies].VerticalMode := Leaf;
+      Species[inxSpecies].NodeTier := -1;
+      strWork := strWork + Species[inxSpecies].SpeciesName;
+      if inxSpecies <= SpeciesCount - 2 then
+        strWork := strWork + ',';
+      prgBar.Position := prgBar.Position + 1;
+    end;
+    strlstDstncMtrx.Add(strWork);
+    strWork := Species[0].SpeciesName;
+    strlstDstncMtrx.Add(strWork);
+    for inxSpecies := 1 to SpeciesCount - 1 do
+    begin
+      strWork := Species[inxSpecies].SpeciesName + ',';
+      for inxNextSpecies := 0 to inxSpecies - 1 do
+      begin
+        strWork := strWork + FloatToStrF(DistanceMatrix[inxNextSpecies, inxSpecies], ffFixed, 12, 6);
+        if inxNextSpecies < inxSpecies - 1 then
+          strWork := strWork + ',';
+        prgBar.Position := prgBar.Position + 1;
+       end;
+      strlstDstncMtrx.Add(strWork);
+    end;
+    mmoRslts.Lines.Assign(strlstDstncMtrx);
+  end;
+end;
+
+{
+Build matching matrix for species matching remaining species in test column.
+Matrix has the form top species in books, remaining species in rows, and tests in columns.
+Arrays: BM = Binar Matrix and MM = Matching Matrix
+}
+procedure BuildMatchingMatrix(var prgBar: TProgressBar; var BM: TBinaryMatix; var MM: TMatchingMatrix; const boolShowBar: boolean);
+var
+  inxSpecies,             // Indices of species
+  inxNextSpecies,         // Indices of different species
+  inxTests: integer;      // Indices of tests
+
+begin
+  with TestTableForSpeciesData do
+  begin
+    prgBar.Position := 0;
+    prgBar.Max := (SpeciesCount - 1) * (SpeciesCount - 1) * (TestCount - 1) + 1;
+    SetLength(MM, SpeciesCount - 1, SpeciesCount - 1, TestCount);
+    for inxSpecies := 0 to SpeciesCount - 2 do
+      for inxNextSpecies := inxSpecies + 1 to SpeciesCount - 1 do
+        for inxTests := 0 to TestCount - 1 do
+        begin
+          if BM[inxSpecies, inxTests] <> BM[inxNextSpecies, inxTests] then
+            MM[inxSpecies, inxNextSpecies - 1, inxTests] := True
+          else
+            MM[inxSpecies, inxNextSpecies - 1, inxTests] := False;
+          if boolShowBar then
+            prgBar.Position := prgBar.Position + 1;
+        end;
+  end;
+end;
+
+procedure AssignBinaryDistanceMatrix(var prgBar: TProgressBar; var MM: TMatchingMatrix; var DM: TDistanceMatrix; const boolShowBar: boolean);
+var
+  inxSpecies,             // Indices of species
+  inxNextSpecies,         // Indices of remaining species
+  inxTests: integer;      // Indices of tests
+  dblCount,               // Test count double precision
+  dblSum: double;         // Sum of matches in a double number
+  inx,
+  iny: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    dblCount := TestCount;
+    for inxSpecies := 0 to SpeciesCount - 2 do
+      for inxNextSpecies := inxSpecies + 1 to SpeciesCount - 1 do
+      begin
+        dblSum := dblZero;
+        for inxTests := 0 to TestCount - 1 do
+        begin
+          if MM[inxSpecies, inxNextSpecies - 1, inxTests] then
+            dblSum :=  dblSum + 1.0;
+          if boolShowBar then
+            prgBar.Position := prgBar.Position + 1;
+        end;
+        DM[inxSpecies, inxNextSpecies] := dblSum / dblCount;
+      end;
+    for inx := 0 to SpeciesCount - 1 do
+      DM[inx, inx] := dblZero;
+    for iny := 0 to SpeciesCount - 2 do
+      for inx := iny + 1 to SpeciesCount - 1 do
+        DM[inx, iny] := DM[iny, inx];
+  end;
+end;
+
+{
+Build distant matrix from dividing matching matrix values by count of matches.
+}
+procedure BuildBinaryDistanceMatrix(var prgBar: TProgressBar; var mmoRslts: TMemo);
+var
+  inxSpecies,              // Indices of species
+  inxNextSpecies: integer; // Indices of remaining species
+  strWork: string;         // Working string to build memo line
+begin
+  with TestTableForSpeciesData do
+  begin
+    SetLength(DistanceMatrix, SpeciesCount, SpeciesCount);
+    AssignBinaryDistanceMatrix(prgBar, MatchingMatrix, DistanceMatrix, True);
+    strlstDstncMtrx.Clear;
+    strWork := Speciestitle + ',';
+    for inxSpecies := 0 to SpeciesCount - 1 do
+    begin
+      Species[inxSpecies].VerticalMode := Leaf;
+      Species[inxSpecies].VrtclPosition.intVrtclLngth := 0;
+      Species[inxSpecies].VrtclPosition.intVrtclSpc := 0;
+      Species[inxSpecies].NodeTier := -1;
+      strWork := strWork + Species[inxSpecies].SpeciesName;
+      if inxSpecies <= SpeciesCount - 2 then
+        strWork := strWork + ',';
+      prgBar.Position := prgBar.Position + 1;
+    end;
+    strlstDstncMtrx.Add(strWork);
+    strWork := Species[0].SpeciesName;
+    strlstDstncMtrx.Add(strWork);
+    for inxSpecies := 1 to SpeciesCount - 1 do
+    begin
+      strWork := Species[inxSpecies].SpeciesName + ',';
+      for inxNextSpecies := 0 to inxSpecies - 1 do
+      begin
+        strWork := strWork + FloatToStrF(DistanceMatrix[inxNextSpecies, inxSpecies], ffFixed, 12, 6);
+        if inxNextSpecies < inxSpecies - 1 then
+          strWork := strWork + ',';
+         prgBar.Position := prgBar.Position + 1;
+      end;
+      strlstDstncMtrx.Add(strWork);
+    end;
+    mmoRslts.Lines.Assign(strlstDstncMtrx);
+  end;
+end;
+
+procedure BuildBSDistanceMatrix(var prgBar: TProgressBar; const intRplcts: integer);
+var
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    SetLength(darBSDistanceMatrix, intRplcts);
+    case wrdDataType of
+      0..1: begin
+        for inx := 0 to intRplcts - 1 do
+        begin
+          SetLength(darBSDistanceMatrix[inx], SpeciesCount, SpeciesCount);
+          BuildMatchingMatrix(prgBar, carBinary[inx], MatchingMatrix, False);
+          AssignBinaryDistanceMatrix(prgBar, MatchingMatrix, darBSDistanceMatrix[inx], False);
+        end;
+        SetLength(MatchingMatrix, 0, 0, 0);
+      end;
+      2: begin
+        for inx := 0 to intRplcts - 1 do
+        begin
+          SetLength(darBSDistanceMatrix[inx], SpeciesCount, SpeciesCount);
+          BuildDifferenceMatrix(prgBar, darBtStrpRwDtMsrmnt[inx], DifferenceMatrix, False);
+          AssignMeasurementDistanceMatrix(prgBar, DifferenceMatrix, darBSDistanceMatrix[inx], False);
+        end;
+        SetLength(DifferenceMatrix, 0, 0, 0);
+      end;
+    end;
+  end;
+end;
+
+procedure InitialDataTableProp;
+var
+  inx: integer;
+begin
+  with frmPIMD_B.strgrdDataTableProp do
+  begin
+    Clear;
+    RowCount := 46;
+    FixedRows := 2;
+    if TestTableForSpeciesData.SpeciesCount > 2 then
+      ColCount := 2 * TestTableForSpeciesData.SpeciesCount
+    else
+      ColCount := 2;
+    FixedCols := 1;
+    for inx := 0 to RowCount - 1 do
+      Cells[0, inx] := kDataTableTitle[inx];
+  end;
+end;
+
+procedure BuildFullDMatrix;
+var
+  inx,
+  iny: integer;
+begin
+  try
+    with TestTableForSpeciesData, frmPIMD_B do
+    begin
+      strgrdDstncMatrix.Clear;
+      strgrdDstncMatrix.RowCount := NodeCount + 1;
+      strgrdDstncMatrix.ColCount := NodeCount + 1;
+      strgrdDstncMatrix.FixedRows := 1;
+      strgrdDstncMatrix.FixedCols := 1;
+      strgrdDstncMatrix.Cells[0, 0] := SpeciesTitle;
+      for inx := 1 to NodeCount do
+        strgrdDstncMatrix.Cells[inx, 0] := Species[inx - 1].SpeciesName;
+      for iny := 1 to NodeCount do
+        strgrdDstncMatrix.Cells[0, iny] := Species[iny - 1].SpeciesName;
+      for iny := 1 to NodeCount do
+        for inx := 1 to NodeCount do
+          if (inx <= SpeciesCount) and (iny <= SpeciesCount) then
+            strgrdDstncMatrix.Cells[inx, iny] := FloatToStrF(DistanceMatrix[inx - 1, iny - 1], ffFixed, 10, 4)
+          else
+            if DistanceMatrix[inx - 1, iny - 1] <> 0 then
+              strgrdDstncMatrix.Cells[inx, iny] := FloatToStrF(DistanceMatrix[inx - 1, iny - 1], ffFixed, 10, 4)
+            else
+              strgrdDstncMatrix.Cells[inx, iny] := '';
+      txtDataColumns.Text := IntToStr(strgrdDstncMatrix.ColCount - strgrdDstncMatrix.FixedCols);
+      txtDataRows.Text := IntToStr(strgrdDstncMatrix.RowCount - strgrdDstncMatrix.FixedRows);
+    end;
+  except
+    on E:exception do
+      with frmPIMD_B.strgrdDstncMatrix do
+      begin
+        Cells[0, 1] := IntToStr(E.HelpContext);
+        Cells[1, 0] := 'Error';
+        Cells[1, 1] := E.Message;
+        RowCount := 2;
+        ColCount := 2;
+      end;
+  end;
+  frmPIMD_B.strgrdDstncMatrix.AutoSizeColumns;
+end;
+
+procedure BuildBSFullDMatrix(const intBootStrapPage: integer);
+var
+  intNC,
+  inx,
+  iny: integer;
+begin
+  try
+    if intBootStrapPage < 0 then
+      Exit;
+    with TestTableForSpeciesData, frmPIMD_B do
+    begin
+      intNC := High(darBSDistanceMatrix[intBootStrapPage]);
+      strgrdDstncMatrix.Clear;
+      strgrdDstncMatrix.RowCount := intNC + 2;
+      strgrdDstncMatrix.ColCount := intNC + 2;
+      strgrdDstncMatrix.FixedRows := 1;
+      strgrdDstncMatrix.FixedCols := 1;
+      strgrdDstncMatrix.Cells[0, 0] := 'Replicate:' + IntToStr(intBootStrapPage);
+      for inx := 1 to NodeCount do
+        strgrdDstncMatrix.Cells[inx, 0] := arstrNodeNames[intBootStrapPage][inx - 1];
+      for iny := 1 to NodeCount do
+        strgrdDstncMatrix.Cells[0, iny] := arstrNodeNames[intBootStrapPage][iny - 1];
+      for iny := 1 to intNC + 1 do
+        for inx := 1 to intNC + 1 do
+          if (inx <= SpeciesCount) and (iny <= SpeciesCount) then
+            strgrdDstncMatrix.Cells[inx, iny] := FloatToStrF(darBSDistanceMatrix[intBootStrapPage][inx - 1, iny - 1], ffFixed, 10, 4)
+          else
+            if darBSDistanceMatrix[intBootStrapPage][inx - 1, iny - 1] <> 0 then
+              strgrdDstncMatrix.Cells[inx, iny] := FloatToStrF(darBSDistanceMatrix[intBootStrapPage][inx - 1, iny - 1], ffFixed, 10, 4)
+            else
+              strgrdDstncMatrix.Cells[inx, iny] := '';
+      txtDataColumns.Text := IntToStr(strgrdDstncMatrix.ColCount - strgrdDstncMatrix.FixedCols);
+      txtDataRows.Text := IntToStr(strgrdDstncMatrix.RowCount - strgrdDstncMatrix.FixedRows);
+    end;
+  except
+    on E:exception do
+      with frmPIMD_B.strgrdDstncMatrix do
+      begin
+        Cells[0, 1] := IntToStr(E.HelpContext);
+        Cells[1, 0] := 'Error';
+        Cells[1, 1] := E.Message;
+        RowCount := 2;
+        ColCount := 2;
+      end;
+  end;
+  frmPIMD_B.strgrdDstncMatrix.AutoSizeColumns;
+end;
+
+procedure AssignQMatrix(var darQM: TFullQMatrix; const boolarIsActive: TIsActive; const iarQI: TBSQIndex; const darDM: TDistanceMatrix; const intIDM, intIQL, inxQM, intQM: integer);
+var
+  ColX,              // Column of lowest Q Matrix value
+  RowY,              // Row of lowest Q Matrix value
+  inx,
+  iny,
+  ink: integer;
+  dblQV,             // Single Q Matrix values
+  dblDstcn,
+  dblSum: double;
+begin
+  try
+    with TestTableForSpeciesData do
+    begin
+      SetLength(darQM[inxQM], intIQL, intIQL);
+      for inx := 0 to intIDM do
+        if boolarIsActive[inx] then
+          for iny := 0 to intIDM do
+            if inx = iny then
+              continue
+            else
+              if boolarIsActive[iny] then
+              begin
+                dblSum := dblZero;
+                for ink := 0 to intIDM do
+                  if boolarIsActive[ink] then
+                    dblSum := dblSum - darDM[inx, ink];
+                for ink := 0 to intIDM do
+                  if boolarIsActive[ink] then
+                    dblSum := dblSum - darDM[iny, ink];
+                dblDstcn := darDM[inx, iny];
+                ColX := iarQI[inx];
+                RowY := iarQI[iny];
+                if (ColX >= intIQL) or (RowY >= intIQL) then
+                  strlstCalcErrs.Add('High intAQMCC = ' + IntToStr(intIQL) + ', Column X = ' + IntToStr(ColX) + ', Row Y = ' + IntToStr(RowY) + ', index Q = ' + IntToStr(inxQM) + ', inx = ' + IntToStr(inx) + ', iny = ' + IntToStr(iny) + ', and inr = ' + IntToStr(intQM))
+                else
+                begin
+                  dblQV := (SpeciesCount - 2 - inxQM) * dblDstcn + dblSum;
+                  darQM[inxQM][ColX, RowY] := dblQV;
+                end;
+              end;
+    end;
+  except
+    on E:exception do
+    begin
+      MessageDlg(E.Message, mtError, [mbOK], 0);
+    end;
+  end;
+end;
+
+procedure BuildQMatrix;
+var
+  intADMCC,     // Current Distance Matrix size
+  intADMGridC,  // Current Distance Matrix grid size
+  intAQMCC,     // Current Q Matrix size
+  intAQMGridC,  // Current Q Matrix grid size
+  inx,
+  iny,
+  ink: integer;
+begin
+  try
+    with TestTableForSpeciesData, frmPIMD_B do
+    begin
+      intADMGridC := SpeciesCount + inxQ;
+      intADMCC := intADMGridC - 1;
+      intAQMCC := SpeciesCount - inxQ;
+      intAQMGridC := intAQMCC + 1;
+      SetLength(inxSpcsQM, intAQMCC);
+      if inxQ = 0 then
+      begin
+        SetLength(QMatrix, SpeciesCount - 3);
+        for inx := SpeciesCount to 2 * SpeciesCount - 4 do
+          IsActive[inx] := False;
+      end
+      else
+        strgrdQMarix.Clear;
+      with strgrdQMarix do
+      begin
+        RowCount := intAQMGridC;
+        ColCount := intAQMGridC;
+        FixedRows := 1;
+        FixedCols := 1;
+        Cells[0, 0] := SpeciesTitle;
+      end;
+      ink := 0;
+      for inx := 1 to intADMGridC do
+        if IsActive[inx - 1] then
+        begin
+          QIndex[inx - 1] := ink;
+          inxSpcsQM[ink] := inx - 1;
+          if ink > intAQMCC - 1 then
+          begin
+            strgrdQMarix.RowCount := ink + 2;
+            strgrdQMarix.ColCount := ink + 2;
+          end;
+          strgrdQMarix.Cells[ink + 1, 0] := Species[inx - 1].SpeciesName;
+          strgrdQMarix.Cells[0, ink + 1] := Species[inx - 1].SpeciesName;
+          inc(ink);
+        end
+        else
+          QIndex[inx - 1] := kintDisabledSpcs;
+      AssignQMatrix(QMatrix, IsActive, QIndex, DistanceMatrix, intADMCC, intAQMCC, inxQ, 0);
+      for iny := 1 to intAQMCC do
+        for inx := 1 to intAQMCC do
+        begin
+          if inx <> iny then
+            strgrdQMarix.Cells[inx, iny] := FloatToStrF(QMatrix[inxQ][inx - 1, iny - 1], ffFixed, 12, 6);
+        end;
+      ink := 0;
+    end;
+  except
+    on E:exception do
+      with frmPIMD_B.strgrdQMarix do
+      begin
+        Clear;
+        RowCount := 2;
+        ColCount := 2;
+        FixedRows := 1;
+        FixedCols := 1;
+        Cells[0, 0] := TestTableForSpeciesData.SpeciesTitle;
+        Cells[0, 1] := IntToStr(E.HelpContext);
+        Cells[1, 0] := 'Error';
+        Cells[1, 1] := E.Message;
+      end;
+  end;
+  frmPIMD_B.strgrdQMarix.AutoSizeColumns;
+end;
+
+function boolUnresolvedNodes: boolean;
+var
+  inx: integer;
+begin
+  Result := False;
+  for inx := 0 to TestTableForSpeciesData.NodeCount - 2 do
+    if TestTableForSpeciesData.Species[inx].NodeLevel = -1 then
+    begin
+      Result := True;
+      break;
+    end;
+end;
+
+procedure MakeABranch(var dblLowestValue, dblSum: double; var inxarDstcn: TDistanceIndex; var ColX, RowY: integer; var strError: string);
+const
+  kFirstCol = 1;
+  kFirstRow = 0;
+var
+  csrSave: TCursor;
+  int1stNdix,
+  int2ndNdix,
+  intFrstNd,
+  intSpcs,
+  ink,
+  inx,
+  iny: integer;
+  dblX,
+  dblY,
+  dblZ,
+  dblSpltLngth,
+  dblFirst: double;
+  boolFirstNode,
+  boolSplitter,
+  boolEndRun: boolean;
+  strDigits,
+  strWork: string;
+begin
+ csrSave := Screen.Cursor;
+ Screen.Cursor := crHourglass;
+ try
+  try
+    boolEndRun := False;
+    repeat
+      with TestTableForSpeciesData, frmPIMD_B do
+      begin;
+        ColX := inxSpcsQM[kFirstCol];
+        RowY := inxSpcsQM[kFirstRow];
+        dblLowestValue := QMatrix[inxQ][kFirstCol, kFirstRow];
+        for iny := 0 to SpeciesCount - inxQ - 1 do
+          for inx := SpeciesCount - inxQ - 1 downto iny + 1 do
+            if QMatrix[inxQ][inx, iny] < dblLowestValue then
+            begin
+              dblLowestValue := QMatrix[inxQ][inx, iny];
+              ColX := inxSpcsQM[inx];
+              RowY := inxSpcsQM[iny];
+            end;
+        dblFirst := dblZero;
+        for iny := 0 to NodeCount - 1 do
+          if IsActive[iny] then
+            dblFirst := dblFirst + DistanceMatrix[ColX, iny];
+        for iny := 0 to NodeCount - 1 do
+          if IsActive[iny] then
+            dblFirst := dblFirst - DistanceMatrix[RowY, iny];
+        Species[ColX].BranchLength := 0.5 * DistanceMatrix[ColX, RowY] + 0.5 / (SpeciesCount - 2 - inxQ) * dblFirst;
+        Species[RowY].BranchLength := DistanceMatrix[ColX, RowY] - Species[ColX].BranchLength;
+        if Species[RowY].BranchLength < dblZero then
+          strlstCalcErrs.Add('Warning Zero/Negative BL distance = ' + FloatToStrF(Species[RowY].BranchLength, ffFixed, 12, 8) + ' @ Node Name = ' + Species[RowY].SpeciesName);
+        if Species[ColX].BranchLength < dblZero then
+          strlstCalcErrs.Add('Warning Zero/Negative BL distance = ' + FloatToStrF(Species[ColX].BranchLength, ffFixed, 12, 8) + ' @ Node Name = ' + Species[ColX].SpeciesName);
+        IsActive[ColX] := False;
+        IsActive[RowY] := False;
+        with Species[ColX] do
+        begin
+          NodeParent := NodeCount;
+          BeginSegment.int1stXNd := NodeCount;
+          BeginSegment.int2ndXNd := RowY;
+          Species[NodeCount].Leaves := Leaves;
+        end;
+        with Species[RowY] do
+        begin
+          NodeParent := NodeCount;
+          BeginSegment.int1stXNd := NodeCount;
+          BeginSegment.int2ndXNd := ColX;
+          Species[NodeCount].Leaves := Species[NodeCount].Leaves + Leaves;
+        end;
+        Inc(LastNode);
+        strWork := '<';
+        if (ColX < SpeciesCount) and (RowY < SpeciesCount) then
+          if RowY > ColX then  // original
+            strWork := strWork + IntToStr(ColX) + ',' + IntToStr(RowY)
+          else
+            strWork := strWork + IntToStr(RowY) + ',' + IntToStr(ColX)
+        else
+          if ColX < SpeciesCount then
+             strWork := strWork + IntToStr(ColX) + ',' + Species[RowY].SpeciesName
+          else
+            if RowY < SpeciesCount then
+              strWork := strWork + IntToStr(RowY) + ',' + Species[ColX].SpeciesName
+            else
+              if Length(Species[ColX].SpeciesName) > Length(Species[RowY].SpeciesName) then
+                strWork := strWork + Species[RowY].SpeciesName + ',' + Species[ColX].SpeciesName
+              else
+                strWork := strWork + Species[ColX].SpeciesName + ',' + Species[RowY].SpeciesName;
+        Species[NodeCount].SpeciesName := strWork + '>';
+        with Species[NodeCount] do
+        begin
+          EndSegment.int1stXNd := ColX;
+          EndSegment.int2ndXNd := RowY;
+        end;
+        IsActive[NodeCount] := True;
+        Inc(NodeCount);
+        SetLength(DistanceMatrix, NodeCount, NodeCount);
+        strgrdDstncMatrix.ColCount := NodeCount + 1;
+        strgrdDstncMatrix.RowCount := NodeCount + 1;
+        strgrdDstncMatrix.Cells[NodeCount, 0] := Species[NodeCount - 1].SpeciesName;
+        strgrdDstncMatrix.Cells[0, NodeCount] := Species[NodeCount - 1].SpeciesName;
+        for iny := 0 to NodeCount - 2 do
+          if ColX <> iny then
+            if iny <> RowY then
+              if IsActive[iny] then
+              begin
+                dblFirst := 0.5 * (DistanceMatrix[iny, RowY] + DistanceMatrix[iny, ColX] - DistanceMatrix[ColX, RowY]);
+                DistanceMatrix[NodeCount - 1, iny] := dblFirst;
+                strgrdDstncMatrix.Cells[NodeCount, iny + 1] := FloatToStrF(dblFirst, ffFixed, 10, 4);
+                DistanceMatrix[iny, NodeCount - 1] := dblFirst;
+                strgrdDstncMatrix.Cells[iny + 1, NodeCount] := FloatToStrF(dblFirst, ffFixed, 10, 4);
+              end;
+        txtDataColumns.Text := IntToStr(strgrdDstncMatrix.ColCount - strgrdDstncMatrix.FixedCols);
+        txtDataRows.Text := IntToStr(strgrdDstncMatrix.RowCount - strgrdDstncMatrix.FixedRows);
+        with strgrdDataTableProp do
+          for inx := 1 to 2 * SpeciesCount - 3 do
+            with Species[inx - 1] do
+            begin
+              if SpeciesName <> '' then
+                Cells[inx, 0] := SpeciesName
+              else
+                Cells[inx, 0] := IntToStr(inx - 1);
+              Cells[inx, 1] := IntToStr(inx - 1);
+              Cells[inx, 2] := IntToStr(QIndex[inx - 1]);
+              Cells[inx, 3] := strToF(IsActive[inx - 1], 'Active', 'Not Active');
+              Cells[inx, 4] := FloatToStrF(BranchLength, ffFixed, 12, 8);
+              Cells[inx, 5] := IntToStr(NodeLevel);
+              Cells[inx, 6] := IntToStr(NodeParent);
+            end;
+        inc(inxQ);
+        strgrdDstncMatrix.AutoSizeColumns;
+      end;
+      if TestTableForSpeciesData.SpeciesCount - TestTableForSpeciesData.inxQ > 3 then
+        BuildQMatrix
+      else
+        boolEndRun := True;
+      strError := '';
+    until boolEndRun;
+    ink := 0;
+    for iny := 0 to TestTableForSpeciesData.NodeCount - 1 do
+      if TestTableForSpeciesData.IsActive[iny] then  // Find remaining active points
+      begin
+        inxarDstcn[ink] := iny;    // Active point found
+        inc(ink);
+      end;
+    dblarDstcn[0] := DistanceMatrix[inxarDstcn[0], inxarDstcn[2]]; // X + Y
+    dblarDstcn[1] := DistanceMatrix[inxarDstcn[1], inxarDstcn[2]]; // Y + Z
+    dblarDstcn[2] := DistanceMatrix[inxarDstcn[0], inxarDstcn[1]]; // X + Z
+    dblX := (dblarDstcn[0] + dblarDstcn[1] - dblarDstcn[2]) / 2.0;   // Calculate X
+    dblY := dblarDstcn[1] - dblX;                                  // Calculate Y
+    dblZ := dblarDstcn[0] - dblX;                                  // Calculate Z
+    with TestTableForSpeciesData do
+    begin
+      Species[inxarDstcn[0]].BranchLength := dblZ;              // Place Z in first active node
+      Species[inxarDstcn[1]].BranchLength := dblY;              // Place Y in second active node
+      Species[inxarDstcn[2]].BranchLength := dblX;              // Place Z in third active node
+      Species[NodeCount - 1].NodeLevel := 0;
+      Species[NodeCount].NodeLevel := 0;
+      Species[NodeCount + 1].NodeLevel := -1;
+      Species[NodeCount - 1].VerticalMode := AParent;
+      Species[NodeCount].VerticalMode := AParent;
+      Species[NodeCount + 1].VerticalMode := AParent;
+      for inx := 0 to NodeCount - 2 do
+        if Species[inx].NodeParent in [0, NodeCount - 1] then
+          Species[inx].NodeLevel := 1;
+      boolFirstNode := True;
+      for inx := 0 to 2 do
+        if inxarDstcn[inx] = NodeCount - 1 then
+        begin
+          Species[inxarDstcn[inx]].BeginSegment.int1stXNd := NodeCount + 1;
+          Species[inxarDstcn[inx]].BeginSegment.int2ndXNd := NodeCount;
+          Species[inxarDstcn[inx]].NodeParent := NodeCount + 1;
+          Species[NodeCount].BeginSegment.int1stXNd := NodeCount + 1;
+          Species[NodeCount].BeginSegment.int2ndXNd := NodeCount - 1;
+        end
+        else
+        begin
+          Species[inxarDstcn[inx]].BeginSegment.int1stXNd := NodeCount;
+          if boolFirstNode then
+          begin
+            Species[NodeCount].EndSegment.int1stXNd := inxarDstcn[inx];
+            Species[inxarDstcn[inx]].NodeParent := NodeCount;
+            intFrstNd := inxarDstcn[inx];
+            boolFirstNode := False;
+          end
+          else
+          begin
+            Species[NodeCount].EndSegment.int2ndXNd := inxarDstcn[inx];
+            Species[inxarDstcn[inx]].NodeParent := NodeCount;
+            Species[inxarDstcn[inx]].BeginSegment.int2ndXNd := intFrstNd;
+            Species[intFrstNd].BeginSegment.int2ndXNd := inxarDstcn[inx];
+          end;
+        end;
+      iny := 1;
+      while boolUnresolvedNodes do
+      begin
+        inc(iny);
+        for inx := 0 to NodeCount - 2 do
+          if Species[inx].NodeLevel = kUnknownNode then
+            if Species[Species[inx].NodeParent].NodeLevel = iny - 1 then
+              Species[inx].NodeLevel := iny;
+      end;
+    end;
+    dblSum := dblZero;
+    with TestTableForSpeciesData, frmPIMD_B.strgrdDataTableProp do
+    begin
+      for inx := 0 to 2 do         // Place X, Y, & Z in Species Properties table grid
+        Cells[inxarDstcn[inx] + 1, 4] := FloatToStrF(Species[inxarDstcn[inx]].BranchLength, ffFixed, 12, 8);
+      Species[NodeCount].SpeciesName := 'Node';
+      boolSplitter := True;
+      strWork := '<';
+      for inx := 0 to NodeCount - 2 do
+        if IsActive[inx] then
+          if boolSplitter then
+          begin
+            int1stNdix := inx;
+            boolSplitter := False;
+          end
+          else
+          begin
+            int2ndNdix := inx;
+            break;
+          end;
+//          Species[NodeCount].SpeciesName := Species[NodeCount].SpeciesName + IntToStr(inx);
+//          begin
+//            Species[NodeCount].SpeciesName := Species[NodeCount].SpeciesName + '<|>';
+//            boolSplitter := False;
+//          end
+//          else
+//            break;
+//        end;
+      if (int1stNdix < SpeciesCount) and (int2ndNdix < SpeciesCount) then
+        if int2ndNdix > int1stNdix then  // original
+          strWork := strWork + IntToStr(int1stNdix) + ',' + IntToStr(int2ndNdix)
+        else
+          strWork := strWork + IntToStr(int2ndNdix) + ',' + IntToStr(int1stNdix)
+      else
+        if int1stNdix < SpeciesCount then
+           strWork := strWork + IntToStr(int1stNdix) + ',' + Species[int2ndNdix].SpeciesName
+        else
+          if int2ndNdix < SpeciesCount then
+            strWork := strWork + IntToStr(int2ndNdix) + ',' + Species[int1stNdix].SpeciesName
+          else
+            if Length(Species[int1stNdix].SpeciesName) > Length(Species[int2ndNdix].SpeciesName) then
+              strWork := strWork + Species[int2ndNdix].SpeciesName + ',' + Species[int1stNdix].SpeciesName
+            else
+              strWork := strWork + Species[int1stNdix].SpeciesName + ',' + Species[int2ndNdix].SpeciesName;
+      Species[NodeCount].SpeciesName := strWork + '>';
+      Species[NodeCount + 1].SpeciesName := '*Root*';
+      for inx := 0 to NodeCount - 1 do
+      begin
+        if inx < SpeciesCount then
+          with Species[inx] do
+          begin
+            EndSegment.int1stXNd := inx;
+            EndSegment.int2ndXNd := inx;
+            Cells[inx + 1, 6] := IntToStr(NodeParent);
+            Cells[inx + 1, 8] := IntToStr(BeginSegment.int1stXNd);
+            Cells[inx + 1, 9] := IntToStr(BeginSegment.int2ndXNd);
+            Cells[inx + 1, 10] := IntToStr(EndSegment.int1stXNd);
+            Cells[inx + 1, 11] := IntToStr(EndSegment.int2ndXNd);
+            Cells[inx + 1, 16] := Cells[inx + 1, 0] + ':' + Cells[inx + 1, 4];
+            Cells[inx + 1, 33] := IntToStr(Leaves);
+          end
+        else
+          if inx < NodeCount - 1 then
+          begin
+            Cells[inx + 1, 6] := IntToStr(Species[inx].NodeParent);
+            Cells[inx + 1, 8] := IntToStr(Species[inx].BeginSegment.int1stXNd);
+            Cells[inx + 1, 9] := IntToStr(Species[inx].BeginSegment.int2ndXNd);
+            Cells[inx + 1, 10] := IntToStr(Species[inx].EndSegment.int1stXNd);
+            Cells[inx + 1, 11] := IntToStr(Species[inx].EndSegment.int2ndXNd);
+            Cells[inx + 1, 16] := '()' + ':' + Cells[inx + 1, 4];
+            Cells[inx + 1, 33] := IntToStr(Species[inx].Leaves);
+          end
+          else
+          begin
+            Species[inx + 2].BranchLength := dblZero;
+            dblSpltLngth := dblSplitLength(Species[inx].BranchLength);
+            Species[inx + 1].BranchLength := Species[inx].BranchLength - dblSpltLngth;
+            Species[inx].BranchLength := dblSpltLngth;
+            Species[inx].Leaves := Species[Species[inx].EndSegment.int1stXNd].Leaves + Species[Species[inx].EndSegment.int2ndXNd].Leaves;
+            Species[inx + 1].Leaves := Species[Species[inx + 1].EndSegment.int1stXNd].Leaves + Species[Species[inx + 1].EndSegment.int2ndXNd].Leaves;
+            Species[inx + 2].Leaves := Species[inx + 1].Leaves + Species[inx].Leaves;
+            Species[inx + 2].BeginSegment.int1stXNd := NodeCount + 1;
+            Species[inx + 2].BeginSegment.int2ndXNd := NodeCount + 1;
+            Species[inx + 2].EndSegment.int1stXNd := NodeCount - 1;
+            Species[inx + 2].EndSegment.int2ndXNd := NodeCount;
+            Species[inx].NodeParent := NodeCount + 1;
+            Species[inx + 1].NodeParent := NodeCount + 1;
+            Cells[inx + 2, 0] := Species[NodeCount].SpeciesName;
+            Cells[inx + 3, 0] := Species[NodeCount + 1].SpeciesName;
+            Cells[inx + 3, 1] := IntToStr(inx + 2);
+            Cells[inx + 2, 1] := IntToStr(NodeCount);
+            Cells[inx + 2, 2] := IntToStr(QIndex[inx + 1]);
+            Cells[inx + 2, 3] := strToF(IsActive[inx + 1], 'Active', 'Not Active');
+            Cells[inx + 1, 4] := FloatToStrF(dblSpltLngth, ffFixed, 12, 8);
+            Cells[inx + 2, 4] := FloatToStrF(Species[inx + 1].BranchLength, ffFixed, 12, 8);
+            Cells[inx + 3, 4] := FloatToStrF(Species[inx + 2].BranchLength, ffFixed, 12, 8);
+            Cells[inx + 1, 6] := IntToStr(Species[inx].NodeParent);
+            Cells[inx + 2, 6] := IntToStr(Species[inx + 1].NodeParent);
+            Cells[inx + 3, 6] := IntToStr(Species[inx + 2].NodeParent);
+            Cells[inx + 1, 16] := ')' + ':' + FloatToStrF(dblSpltLngth, ffFixed, 12, 8); // + ',' +
+            Cells[inx + 2, 16] := ')' + ':' + FloatToStrF(Species[inx + 1].BranchLength, ffFixed, 12, 8);
+            Cells[inx + 1, 8] := IntToStr(Species[inx].BeginSegment.int1stXNd);
+            Cells[inx + 1, 9] := IntToStr(Species[inx].BeginSegment.int2ndXNd);
+            Cells[inx + 1, 10] := IntToStr(Species[inx].EndSegment.int1stXNd);
+            Cells[inx + 1, 11] := IntToStr(Species[inx].EndSegment.int2ndXNd);
+            Cells[inx + 2, 8] := IntToStr(Species[inx + 1].BeginSegment.int1stXNd);
+            Cells[inx + 2, 9] := IntToStr(Species[inx + 1].BeginSegment.int2ndXNd);
+            Cells[inx + 3, 8] := IntToStr(Species[inx + 2].BeginSegment.int1stXNd);
+            Cells[inx + 3, 9] := IntToStr(Species[inx + 2].BeginSegment.int2ndXNd);
+            Cells[inx + 2, 10] := IntToStr(Species[inx + 1].EndSegment.int1stXNd);
+            Cells[inx + 2, 11] := IntToStr(Species[inx + 1].EndSegment.int2ndXNd);
+            Cells[inx + 3, 10] := IntToStr(Species[inx + 2].EndSegment.int1stXNd);
+            Cells[inx + 3, 11] := IntToStr(Species[inx + 2].EndSegment.int2ndXNd);
+            Cells[inx + 1, 33] := IntToStr(Species[inx].Leaves);
+            Cells[inx + 2, 33] := IntToStr(Species[inx + 1].Leaves);
+            Cells[inx + 3, 33] := IntToStr(Species[inx + 2].Leaves);
+            Species[inx + 1].NewickToken := Cells[inx + 2, 16];
+          end;
+        Species[inx].NewickToken := Cells[inx + 1, 16];
+      end;
+      for inx := SpeciesCount to NodeCount - 2 do
+      begin
+        strWork := '';
+        for iny := inx - 1 downto 0 do
+          if Species[iny].NodeParent = inx then
+            strWork := strWork + Species[iny].NewickToken + ',';
+        if Length(strWork) > 0 then
+          Delete(strWork, Length(strWork), 1);
+        Species[inx].NewickToken := Species[inx].NewickToken[1] + strWork + Copy(Species[inx].NewickToken, 2, Length(Species[inx].NewickToken) - 1);
+        Cells[inx + 1, 16] := Species[inx].NewickToken;
+        Species[inx].VerticalMode := Child;
+      end;
+      for inx := 1 to NodeCount + 2 do
+      begin
+        Cells[inx, 5] := IntToStr(Species[inx - 1].NodeLevel);
+        dblSum := dblSum + Species[inx - 1].BranchLength;
+      end;
+      strWork := Species[NodeCount].SpeciesName + Species[NodeCount - 1].SpeciesName + ';';
+      inx := 0;
+      iny := 0;
+      strDigits := '';
+      while strWork[inx] <> ';' do
+      begin
+        if strWork[inx] in ['0'..'9'] then
+          strDigits := strDigits + strWork[inx]
+        else
+          if Length(strDigits) > 0 then
+          begin
+            intSpcs := StrToInt(strDigits);
+            arryinxBracket[0][iny] := intSpcs;
+            Species[intSpcs].inxBracket := iny;
+            strDigits := '';
+            inc(iny);
+          end;
+        inc(inx);
+      end;
+      for inx :=  0 to NodeCount do
+        Cells[inx + 1, 34] := IntToStr(Species[inx].inxBracket);
+      with Species[NodeCount + 1] do
+        NewickToken := '----';
+      Cells[NodeCount + 2, 16] := Species[NodeCount + 1].NewickToken;
+    end;
+    MessageDlg('Calculate Tree...Done', mtInformation, [mbOK], 0);
+  except
+    on E:exception do begin
+      dblLowestValue := kInvalidData;
+      ColX := 0;
+      RowY := 0;
+      strError := E.Message;
+      strlstCalcErrs.Add(strError);
+      MessageDlg(strError, mtError, [mbOK], 0);
+    end;
+  end;
+ finally
+   frmPIMD_B.strgrdDataTableProp.AutoSizeColumns;
+   if strlstCalcErrs.Count > 0 then
+   begin
+     strlstCalcErrs.Add(strErrorHdrFtr('', 'Calculate Make a Branch', False));
+     frmPIMD_B.mnuShowCalcErrs.Enabled := True;
+     modCalcErrs.frmCalculatedErrors.Show;
+   end;
+   Screen.Cursor := csrSave;
+ end;
+end;
+
+procedure FindBranches(const intRplcts: Integer; var strError: string);
+var
+  crsSave: TCursor;
+  strNdNm,
+  strWork,
+  strHiddenNode: string;
+  int1stNdix,
+  int2ndNdix,
+  intNodeCount,
+  intClcltdNd,
+  intADMCC,                           // Current Distance Matrix size
+  intAQMCC,                           // Current Q Matrix size
+  ColX,
+  RowY,
+  ink,
+  inx,
+  inxQI,
+  inr,
+  iny: integer;
+  dblX,
+  dblY,
+  dblZ,
+  dblLowestValue,
+  dblAdd,
+  dblMinus,
+  dblFirst: double;
+  boolSplitter,
+  boolEndRun: boolean;
+const
+  kFirstCol = 1;
+  kFirstRow = 0;
+
+begin
+  crsSave := Screen.Cursor;
+  Screen.Cursor := crHourglass;
+  with TestTableForSpeciesData, frmPIMD_B do
+  try
+    try
+      prgbrFileAction.Max := intRplcts;
+      prgbrFileAction.Position := 0;
+      SetLength(arstrNodeNames, intRplcts);
+      SetLength(iarRplctMtchs, NodeCount - SpeciesCount);
+      SetLength(BSPercent, NodeCount - SpeciesCount + 1);
+      for inx := 0 to NodeCount - SpeciesCount - 1 do
+        iarRplctMtchs[inx] := 0;
+      for inr := 0 to intRplcts - 1 do
+      begin
+        intNodeCount := SpeciesCount;
+        intClcltdNd := 2 * SpeciesCount - 3;
+        inxQI := 0;
+        SetLength(iarQIndex, intClcltdNd);
+        SetLength(dblarBrnchLngths, intClcltdNd);
+        SetLength(arstrNodeNames[inr], intClcltdNd);
+        SetLength(boolarIsActive, intClcltdNd);
+        intADMCC := SpeciesCount + inxQI - 1;
+        intAQMCC := SpeciesCount - inxQI;
+        SetLength(darBSQMatrix, intAQMCC - 3);
+        SetLength(arinxSpcsQM, intAQMCC);
+        ink := 0;
+        for inx := 0 to intClcltdNd - 1 do
+          if inx >= SpeciesCount then
+          begin
+            boolarIsActive[inx] := False;
+            iarQIndex[inx] := kintDisabledSpcs;
+          end
+          else
+          begin
+            boolarIsActive[inx] := True;
+            arstrNodeNames[inr][inx] := Species[inx].SpeciesName;
+            iarQIndex[inx] := ink;
+            arinxSpcsQM[ink] := inx;
+            inc(ink);
+          end;
+        boolEndRun := False;
+        repeat
+          AssignQMatrix(darBSQMatrix, boolarIsActive, iarQIndex, darBSDistanceMatrix[inr], intADMCC, intAQMCC, inxQI, inr);
+          ColX := arinxSpcsQM[kFirstCol];
+          RowY := arinxSpcsQM[kFirstRow];
+          dblLowestValue := darBSQMatrix[inxQI][kFirstCol, kFirstRow]; //[ColX, RowY];
+          for iny := 0 to SpeciesCount - inxQI - 1 do
+            for inx := SpeciesCount - inxQI - 1 downto iny + 1 do
+              if darBSQMatrix[inxQI][inx, iny] < dblLowestValue then
+              begin
+                dblLowestValue := darBSQMatrix[inxQI][inx, iny];
+                ColX := arinxSpcsQM[inx];
+                RowY := arinxSpcsQM[iny];
+              end;
+          dblAdd := dblZero;
+          dblMinus := dblZero;
+          for iny := 0 to intNodeCount - 1 do
+            if boolarIsActive[iny] then
+              dblAdd := dblAdd + darBSDistanceMatrix[inr][ColX, iny];
+          for iny := 0 to intNodeCount - 1 do
+            if boolarIsActive[iny] then
+              dblMinus := dblMinus - darBSDistanceMatrix[inr][RowY, iny];
+          dblFirst := dblAdd + dblMinus;
+          dblarBrnchLngths[ColX] := 0.5 * darBSDistanceMatrix[inr][ColX, RowY] + 0.5 / (SpeciesCount - 2 - inxQI) * dblFirst;
+          dblarBrnchLngths[RowY] := darBSDistanceMatrix[inr][ColX, RowY] - dblarBrnchLngths[ColX];
+          boolarIsActive[ColX] := False;
+          boolarIsActive[RowY] := False;
+          boolarIsActive[intNodeCount] := True;
+          strNdNm := '<';
+          if (ColX < SpeciesCount) and (RowY < SpeciesCount) then
+            if RowY > ColX then  // original
+              strNdNm := strNdNm + IntToStr(ColX) + ',' + IntToStr(RowY)
+            else
+              strNdNm := strNdNm + IntToStr(RowY) + ',' + IntToStr(ColX)
+          else
+            if ColX < SpeciesCount then
+               strNdNm := strNdNm + IntToStr(ColX) + ',' + arstrNodeNames[inr][RowY]
+            else
+              if RowY < SpeciesCount then
+                strNdNm := strNdNm + IntToStr(RowY) + ',' + arstrNodeNames[inr][ColX]
+              else
+                if Length(arstrNodeNames[inr][ColX]) > Length(arstrNodeNames[inr][RowY]) then
+                  strNdNm := strNdNm + arstrNodeNames[inr][RowY] + ',' + arstrNodeNames[inr][ColX]
+                else
+                  strNdNm := strNdNm + arstrNodeNames[inr][ColX] + ',' + arstrNodeNames[inr][RowY];
+          arstrNodeNames[inr][intNodeCount] := strNdNm + '>';
+          Inc(intNodeCount);
+          SetLength(darBSDistanceMatrix[inr], intNodeCount, intNodeCount);
+          for iny := 0 to intNodeCount - 2 do
+            if ColX <> iny then
+              if iny <> RowY then
+                if boolarIsActive[iny] then
+                begin
+                  dblFirst := 0.5 * (darBSDistanceMatrix[inr][iny, RowY] + darBSDistanceMatrix[inr][iny, ColX] - darBSDistanceMatrix[inr][ColX, RowY]);
+                  darBSDistanceMatrix[inr][intNodeCount - 1, iny] := dblFirst;
+                  darBSDistanceMatrix[inr][iny, intNodeCount - 1] := dblFirst;
+                end;
+          inc(inxQI);
+          intADMCC := SpeciesCount + inxQI - 1;
+          intAQMCC := SpeciesCount - inxQI;
+          if SpeciesCount - inxQI > 3 then
+          begin
+            ink := 0;
+            SetLength(arinxSpcsQM, ink);
+            for iny := 0 to intADMCC do
+              if boolarIsActive[iny] then  // Find remaining active points
+              begin
+                SetLength(arinxSpcsQM, ink + 1);
+                arinxSpcsQM[ink] := iny;   // Active point found
+                iarQIndex[iny] := ink;
+                inc(ink);
+              end
+              else
+                iarQIndex[iny] := kintDisabledSpcs;
+          end
+          else
+             boolEndRun := True;
+          strError := '';
+        until boolEndRun;
+        ink := 0;
+        SetLength(arinxSpcsQM, ink);
+        for iny := 0 to intADMCC do
+          if boolarIsActive[iny] then  // Find remaining active points
+          begin
+            SetLength(arinxSpcsQM, ink + 1);
+            arinxSpcsQM[ink] := iny;    // Active point found
+            iarQIndex[iny] := ink;
+            inc(ink);
+          end
+          else
+            iarQIndex[iny] := kintDisabledSpcs;
+        dblarDstcn[0] := darBSDistanceMatrix[inr][arinxSpcsQM[0], arinxSpcsQM[2]]; // X + Y
+        dblarDstcn[1] := darBSDistanceMatrix[inr][arinxSpcsQM[1], arinxSpcsQM[2]]; // Y + Z
+        dblarDstcn[2] := darBSDistanceMatrix[inr][arinxSpcsQM[0], arinxSpcsQM[1]]; // X + Z
+        dblX := (dblarDstcn[0] + dblarDstcn[1] - dblarDstcn[2]) / 2.0; // Calculate X
+        dblY := dblarDstcn[1] - dblX;                                  // Calculate Y
+        dblZ := dblarDstcn[0] - dblX;                                  // Calculate Z
+        with TestTableForSpeciesData do
+        begin
+          dblarBrnchLngths[arinxSpcsQM[0]] := dblZ;              // Place Z in first active node
+          dblarBrnchLngths[arinxSpcsQM[1]] := dblY;              // Place Y in second active node
+          dblarBrnchLngths[arinxSpcsQM[2]] := dblX;              // Place Z in third active node
+        end;
+        SetLength(arinxSpcsQM, 0);
+        SetLength(iarQIndex, 0);
+        SetLength(dblarBrnchLngths, 0);
+        SetLength(darBSQMatrix, 0);
+//        strHiddenNode := 'Node';
+        boolSplitter := True;
+        strNdNm := '<';
+        for inx := 0 to NodeCount - 2 do
+          if boolarIsActive[inx] then
+            if boolSplitter then
+            begin
+              int1stNdix := inx;
+              boolSplitter := False;
+            end
+            else
+            begin
+              int2ndNdix := inx;
+              break;
+            end;
+        if (int1stNdix < SpeciesCount) and (int2ndNdix < SpeciesCount) then
+          if int2ndNdix > int1stNdix then  // original
+            strNdNm := strNdNm + IntToStr(int1stNdix) + ',' + IntToStr(int2ndNdix)
+          else
+            strNdNm := strNdNm + IntToStr(int2ndNdix) + ',' + IntToStr(int1stNdix)
+        else
+          if int1stNdix < SpeciesCount then
+            strNdNm := strNdNm + IntToStr(int1stNdix) + ',' + arstrNodeNames[inr][int2ndNdix]
+          else
+            if int2ndNdix < SpeciesCount then
+              strNdNm := strNdNm + IntToStr(int2ndNdix) + ',' + arstrNodeNames[inr][int1stNdix]
+            else
+              if Length(arstrNodeNames[inr][int2ndNdix]) > Length(arstrNodeNames[inr][int1stNdix]) then
+                strNdNm := strNdNm + arstrNodeNames[inr][int1stNdix] + ',' + arstrNodeNames[inr][int2ndNdix]
+              else
+                strNdNm := strNdNm + arstrNodeNames[inr][int2ndNdix] + ',' + arstrNodeNames[inr][int1stNdix];
+        strHiddenNode := strNdNm + '>';
+        with Species[NodeCount + 1] do
+          NewickToken := '----';
+//        for inx := 0 to intNodeCount - 2 do
+//          if boolarIsActive[inx] then
+//          begin
+//            strHiddenNode := strHiddenNode + IntToStr(inx);
+//            if boolSplitter then
+//            begin
+//              strHiddenNode := strHiddenNode + '<|>';
+//              boolSplitter := False;
+//            end
+//            else
+//              break;
+//          end;
+        for inx := SpeciesCount to intNodeCount - 1 do
+        begin
+          for iny := SpeciesCount to intNodeCount - 1 do
+            if arstrNodeNames[inr][iny] = Species[inx].SpeciesName then
+              inc(iarRplctMtchs[inx - SpeciesCount]);
+          if strHiddenNode = Species[inx].SpeciesName then
+            inc(iarRplctMtchs[inx - SpeciesCount]);
+        end;
+        for iny := SpeciesCount to intNodeCount - 1 do
+          if arstrNodeNames[inr][iny] = HiddenNodeName then
+            inc(HiddenMatches);
+        if strHiddenNode = HiddenNodeName then
+          inc(HiddenMatches);
+        prgbrFileAction.Position :=  inr + 1;
+      end;
+      with strgrdDataTableProp do
+      begin
+        for inx := 1 to NodeCount do
+          if inx < SpeciesCount + 1 then
+            Cells[inx, 32] := '     ----'
+          else
+          begin
+            BSPercent[inx - SpeciesCount - 1] := iarRplctMtchs[inx - SpeciesCount - 1]/intRplcts * 100.0;
+            Cells[inx, 32] := '[' + FloatToStrF(BSPercent[inx - SpeciesCount - 1], ffFixed, 8, 0) + ']';
+            if inx < NodeCount then
+              Cells[inx, 16] := '()' + ':' + Cells[inx, 4] + Cells[inx, 32]
+            else
+            begin
+              HiddenPercent := HiddenMatches / intRplcts * 100.0;
+              BSPercent[inx - SpeciesCount] := HiddenPercent;
+              Cells[inx, 16] := ')' + ':' + FloatToStrF(Species[inx - 1].BranchLength, ffFixed, 12, 8) + Cells[inx, 32]; // + ',' +
+              Cells[inx + 1, 32] := '[' + FloatToStrF(HiddenPercent, ffFixed, 8, 0) + ']';
+              Cells[inx + 1, 16] := ')' + ':' + FloatToStrF(Species[inx].BranchLength, ffFixed, 12, 8) + Cells[inx + 1, 32];
+              Species[inx].NewickToken := Cells[inx + 1, 16];
+            end;
+            Species[inx - 1].NewickToken := Cells[inx, 16];
+          end;
+        for inx := SpeciesCount to NodeCount - 2 do
+        begin
+          strWork := '';
+          for iny := inx - 1 downto 0 do
+            if Species[iny].NodeParent = inx then
+              strWork := strWork + Species[iny].NewickToken + ',';
+            if Length(strWork) > 0 then
+              Delete(strWork, Length(strWork), 1);
+            Species[inx].NewickToken := Species[inx].NewickToken[1] + strWork + Copy(Species[inx].NewickToken, 2, Length(Species[inx].NewickToken) - 1);
+            Cells[inx + 1, 16] := Species[inx].NewickToken;
+        end;
+      end;
+      SetLength(boolarIsActive, 0);
+    except
+      on E:exception do begin
+        dblLowestValue := kInvalidData;
+        ColX := 0;
+        RowY := 0;
+        strError := E.Message;
+        strlstCalcErrs.Add(strError);
+        MessageDlg(strError, mtError, [mbOK], 0);
+      end;
+    end;
+  finally
+    strgrdDataTableProp.AutoSizeColumns;
+    if strlstCalcErrs.Count > 0 then
+    begin
+      strlstCalcErrs.Add(strErrorHdrFtr('', 'Calculate Find Branches', False));
+      mnuShowCalcErrs.Enabled := True;
+      modCalcErrs.frmCalculatedErrors.Show;
+    end;
+    Screen.Cursor := crsSave;
+  end;
+end;
+
+function DegToRad(const extDegrees: Extended): Extended;
+begin
+  Result := extDegrees * Pi / kSemiCircle;
+end;
+
+function IsBeginNodeResolved(const intNd: integer): boolean;
+begin
+  with TestTableForSpeciesData.Species[intNd].BeginSegment do
+    if (int1stXNd <> kUnknownNode) and (int2ndXNd <> kUnknownNode) then
+      Result := True
+    else
+      Result := False;
+end;
+
+function IsEndNodeResolved(const intNd: integer): boolean;
+begin
+  with TestTableForSpeciesData.Species[intNd].EndSegment do
+    if (int1stXNd <> kUnknownNode) and (int2ndXNd <> kUnknownNode) then
+      Result := True
+    else
+      Result := False;
+end;
+
+function IsSegmentResolved(const intNd: integer): boolean;
+begin
+  if IsBeginNodeResolved(intNd) then
+    if IsEndNodeResolved(intNd) then
+      Result := True
+    else
+      Result := False
+  else
+    Result := False;
+end;
+
+function intAllNdSgmntRslvd(const intNd: integer): integer;
+begin
+  if IsSegmentResolved(TestTableForSpeciesData.Species[intNd].BeginSegment.int1stXNd) then
+    if IsSegmentResolved(TestTableForSpeciesData.Species[intNd].BeginSegment.int2ndXNd) then
+      if IsSegmentResolved(TestTableForSpeciesData.Species[intNd].EndSegment.int1stXNd) then
+        if IsSegmentResolved(TestTableForSpeciesData.Species[intNd].EndSegment.int2ndXNd) then
+          if IsSegmentResolved(TestTableForSpeciesData.Species[intNd].NodeParent) then
+            if IsSegmentResolved(TestTableForSpeciesData.Species[TestTableForSpeciesData.Species[intNd].NodeParent].NodeParent) then
+              Result := kUnknownNode
+            else
+              Result := TestTableForSpeciesData.Species[TestTableForSpeciesData.Species[intNd].NodeParent].NodeParent
+          else
+            Result := TestTableForSpeciesData.Species[intNd].NodeParent
+        else
+          Result := TestTableForSpeciesData.Species[intNd].EndSegment.int2ndXNd
+      else
+        Result := TestTableForSpeciesData.Species[intNd].EndSegment.int1stXNd
+    else
+      Result := TestTableForSpeciesData.Species[intNd].BeginSegment.int2ndXNd
+  else
+    Result := TestTableForSpeciesData.Species[intNd].BeginSegment.int1stXNd;
+end;
+
+procedure FindPointFromNodeLevel(const intNode: integer; var ariSgmntPnt :TSegmentPoints);
+var
+  iny,
+  inx: integer;
+begin
+  iny := 0;
+  with TestTableForSpeciesData do
+    for inx := 0 to intNode - 1 do
+      if Species[inx].NodeParent = 0 then
+      if Species[inx].NodeLevel = Species[intNode].NodeLevel + 1 then
+        if iny = 0 then
+        begin
+          ariSgmntPnt[0][iny] := inx;
+          inc(iny);
+        end
+        else
+        begin
+          ariSgmntPnt[0][iny] := inx;
+          break;
+        end;
+end;
+
+procedure FindPoints(const intNode: integer; var intFirst, intSecond: integer);
+var
+  iny,
+  inx: integer;
+begin
+  iny := 1;
+  with TestTableForSpeciesData do
+    for inx := 0 to intNode - 1 do
+      if Species[inx].NodeParent = intNode then
+        if iny = 1 then
+        begin
+          inc(iny);
+          intFirst := inx;
+        end
+        else
+        begin
+          intSecond := inx;
+          break;
+       end;
+end;
+
+procedure FindParentSibling(const intNode: integer; var intParent, intSibling: integer);
+var
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    intParent := Species[intNode].NodeParent;
+    for inx := 0 to NodeCount - 1 do
+      if Species[inx].NodeParent = intParent then
+        if inx <> intNode then
+        begin
+          intSibling := inx;
+          break;
+        end;
+  end;
+end;
+
+procedure FindFinalPoints(const intNode: integer; var intFirst, intSecond: integer);
+var
+  iny,
+  inx: integer;
+begin
+  iny := 1;
+  with TestTableForSpeciesData do
+  begin
+    for inx := 0 to SpeciesCount - 1 do
+      if Species[inx].NodeParent = Species[intNode].NodeParent then
+        if iny = 1 then
+        begin
+          inc(iny);
+          intFirst := inx;
+        end
+        else
+        begin
+          intSecond := inx;
+          break;
+        end;
+  end;
+end;
+
+procedure CreateFirstSegment(var ariSgmntPnt :TSegmentPoints);
+var
+  cpptQuadrant: CompassPnt;
+  sngQuadrantAngle: single;
+  dblRghtAngl,
+  dblLftAngl,
+  dblCosine,
+  dblSine: double;
+  iny,
+  inx,
+  intRghtBrnch,
+  intLftBrnch,
+  intAjacent,
+  intOpposite: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    intRghtBrnch := NodeCount;
+    intLftBrnch := NodeCount - 1;
+//    FindPoints(intHomeNode, ariSgmntPnt[1][0], ariSgmntPnt[1][1]);
+//    FindPointFromNodeLevel(intHomeNode, ariSgmntPnt);
+    with Species[NodeCount + 1] do
+    begin
+      BeginSegment.pntRadial := Origin.ttoRadial.GraphOrigin;
+      EndSegment.pntRadial := Origin.ttoRadial.GraphOrigin;
+    end;
+    with Species[intRghtBrnch] do
+    begin
+      BeginSegment.pntRadial.x := Origin.ttoRadial.GraphOrigin.x;
+      BeginSegment.pntRadial.y := Origin.ttoRadial.GraphOrigin.y;
+      ariSgmntPnt[1][0] := EndSegment.int1stXNd;
+      ariSgmntPnt[1][1] := EndSegment.int2ndXNd;
+      dblRghtAngl := kStartAngle;
+      dblAngle := dblRghtAngl;
+      sngExterior := kStartAngle - sngExtrrOffset - sngHalfAngle;
+      sngInterior := kStartAngle - sngIntrrOffset - sngHalfInterior;
+      if BranchLength > 1.0 then
+        intAjacent := Trunc(BranchLength) * intPixelFactor
+      else
+        intAjacent := intPixelFactor;
+      EndSegment.pntRadial.x := BeginSegment.pntRadial.x + intAjacent;
+      EndSegment.pntRadial.y := BeginSegment.pntRadial.y;
+//      EndSegment.int1stXNd :=  ariSgmntPnt[1][0];
+//      EndSegment.int2ndXNd := ariSgmntPnt[1][1];
+    end;
+    with TestTableForSpeciesData.Species[intLftBrnch] do
+    begin
+      BeginSegment.pntRadial.x := Origin.ttoRadial.GraphOrigin.x;
+      BeginSegment.pntRadial.y := Origin.ttoRadial.GraphOrigin.y;
+      ariSgmntPnt[0][0] := EndSegment.int1stXNd;
+      ariSgmntPnt[0][1] := EndSegment.int2ndXNd;
+      dblLftAngl := kStartAngle + kSemiCircle;
+      dblAngle := dblLftAngl;
+      if BranchLength > 1.0 then
+        intAjacent := Trunc(BranchLength) * intPixelFactor
+      else
+        intAjacent := intPixelFactor;
+      EndSegment.pntRadial.x := BeginSegment.pntRadial.x - intAjacent;
+      EndSegment.pntRadial.y := BeginSegment.pntRadial.y;
+    end;
+    for inx := 0 to 1 do
+      with TestTableForSpeciesData.Species[ariSgmntPnt[0][inx]] do
+      begin
+        dblAngle := dblRghtAngl + (inx - 1) * kRghtAnglBsctd + inx * kRghtAnglBsctd;
+        cpptQuadrant := FindQudrant(dblAngle);
+        sngQuadrantAngle := dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((BranchLength) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((BranchLength) * dblSine) * intPixelFactor;
+        BeginSegment.pntRadial.x := Species[intRghtBrnch].EndSegment.pntRadial.x;
+        BeginSegment.pntRadial.y := Species[intRghtBrnch].EndSegment.pntRadial.y;
+        EndSegment.pntRadial.x := BeginSegment.pntRadial.x + intAjacent;
+        EndSegment.pntRadial.y := BeginSegment.pntRadial.y + intOpposite;
+//        BeginSegment.int1stXNd := intHomeNode;
+//        if inx = 0 then
+//          BeginSegment.int2ndXNd := ariSgmntPnt[1][1]
+//        else
+//          BeginSegment.int2ndXNd := ariSgmntPnt[1][0];
+//        if ariSgmntPnt[1][inx] < SpeciesCount then
+//        begin
+//          EndSegment.int1stXNd := ariSgmntPnt[1][inx];
+//          EndSegment.int2ndXNd := ariSgmntPnt[1][inx];
+//        end;
+      end;
+    for inx := 0 to 1 do
+      with TestTableForSpeciesData.Species[ariSgmntPnt[1][inx]] do
+      begin
+        dblAngle := dblLftAngl + (inx - 1) * kRghtAnglBsctd + inx * kRghtAnglBsctd;
+{        if ariSgmntPnt[0][inx] > NodeCount - 1 then
+          sngInterior := dblAngle
+        else
+          sngExterior := dblAngle;}
+        cpptQuadrant := FindQudrant(dblAngle);
+        sngQuadrantAngle := dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((BranchLength + 1.0) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((BranchLength + 1.0) * dblSine) * intPixelFactor;
+        BeginSegment.pntRadial.x := Species[intLftBrnch].EndSegment.pntRadial.x;
+        BeginSegment.pntRadial.y := Species[intLftBrnch].EndSegment.pntRadial.y;
+        EndSegment.pntRadial.x := BeginSegment.pntRadial.x + intAjacent;
+        EndSegment.pntRadial.y := BeginSegment.pntRadial.y + intOpposite;
+//        BeginSegment.int1stXNd := intHomeNode;
+//        if inx = 0 then
+//          BeginSegment.int2ndXNd := ariSgmntPnt[0][1]
+//        else
+//          BeginSegment.int2ndXNd := ariSgmntPnt[0][0];
+//        if ariSgmntPnt[0][inx] < SpeciesCount then
+//        begin
+//          EndSegment.int1stXNd := ariSgmntPnt[0][inx];
+//          EndSegment.int2ndXNd := ariSgmntPnt[0][inx];
+//        end;
+      end;
+    for inx := 0 to 1 do
+      for iny := 0 to 1 do
+        if ariSgmntPnt[inx][iny] < SpeciesCount then
+          ariSgmntPnt[inx][iny] := -1;
+    HiddenNodeName := Species[NodeCount].SpeciesName;
+//    if Species[NodeCount].EndSegment.int2ndXNd > Species[NodeCount].EndSegment.int1stXNd then
+//      HiddenNodeName := 'Node' + IntToStr(Species[NodeCount].EndSegment.int1stXNd) + '<|>' + IntToStr(Species[NodeCount].EndSegment.int2ndXNd)
+//    else
+//      HiddenNodeName := 'Node' + IntToStr(Species[NodeCount].EndSegment.int2ndXNd) + '<|>' + IntToStr(Species[NodeCount].EndSegment.int1stXNd);
+  end;
+end;
+
+procedure CreateNode(var intNd, int1stPnt, int2ndPnt: integer);
+var
+  intAjacent,
+  intOpposite: integer;
+  cpptQuadrant: CompassPnt;
+  sngQuadrantAngle: single;
+  dblCosine,
+  dblSine: double;
+begin
+  with TestTableForSpeciesData do
+//    if not IsEndNodeResolved(intNd) then
+    begin
+{      if int1stPnt > NodeCount - 1 then
+      begin
+        Species[int1stPnt].dblAngle := sngInterior + sngIntrrOffset;
+        if Species[int1stPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int1stPnt].dblAngle := sngInterior + sngHalfInterior;
+        sngInterior := Species[int1stPnt].dblAngle;
+      end
+      else
+      begin
+        Species[int1stPnt].dblAngle := sngExterior + sngExtrrOffset;
+        if Species[int1stPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int1stPnt].dblAngle := sngExterior + sngHalfAngle;
+        sngExterior := Species[int1stPnt].dblAngle;
+      end;}
+      Species[int1stPnt].dblAngle := Species[intNd].dblAngle - sngHalfAngle;
+      cpptQuadrant := FindQudrant(Species[int1stPnt].dblAngle);
+      sngQuadrantAngle := Species[int1stPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+      dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+      dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+      if dblCosine = dblZero then
+        if dblSine > dblZero then
+          dblSine := 1.0
+        else
+          dblSine := -1.0
+      else
+        if dblSine = 0.0 then
+          if dblCosine > dblZero then
+            dblCosine := 1.0
+           else
+             dblCosine := -1.0;
+      intAjacent := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+      intOpposite := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+      Species[int1stPnt].BeginSegment.pntRadial.x := Species[intNd].EndSegment.pntRadial.x;
+      Species[int1stPnt].BeginSegment.pntRadial.y := Species[intNd].EndSegment.pntRadial.y;
+      Species[int1stPnt].EndSegment.pntRadial.x := Species[int1stPnt].BeginSegment.pntRadial.x + intAjacent;
+      Species[int1stPnt].EndSegment.pntRadial.y := Species[int1stPnt].BeginSegment.pntRadial.y + intOpposite;
+//      Species[intNd].EndSegment.int1stXNd := int1stPnt;
+//      Species[int1stPnt].BeginSegment.int1stXNd := intNd;
+//      Species[int1stPnt].BeginSegment.int2ndXNd := int2ndPnt;
+      if int1stPnt < SpeciesCount then
+      begin
+//        Species[int1stPnt].EndSegment.int1stXNd := int1stPnt;
+//        Species[int1stPnt].EndSegment.int2ndXNd := int1stPnt;
+      end;
+{      if int2ndPnt > NodeCount - 1 then
+      begin
+        Species[int2ndPnt].dblAngle := sngInterior + sngIntrrOffset;
+        if Species[int2ndPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int2ndPnt].dblAngle := sngInterior + sngHalfInterior;
+        if Species[int2ndPnt].dblAngle = Species[int1stPnt].dblAngle then
+          Species[int2ndPnt].dblAngle := sngInterior - sngHalfInterior;
+        sngInterior := Species[int2ndPnt].dblAngle;
+      end
+      else
+      begin
+        Species[int2ndPnt].dblAngle := sngExterior + sngExtrrOffset;
+        if Species[int2ndPnt].dblAngle = Species[intNd].dblAngle then
+          Species[int2ndPnt].dblAngle := sngExterior + sngHalfAngle;
+        if Species[int2ndPnt].dblAngle = Species[int1stPnt].dblAngle then
+          Species[int2ndPnt].dblAngle := sngExterior - sngHalfAngle;
+        sngExterior := Species[int2ndPnt].dblAngle;
+      end;}
+      Species[int2ndPnt].dblAngle := Species[intNd].dblAngle + sngHalfAngle;
+      cpptQuadrant := FindQudrant(Species[int2ndPnt].dblAngle);
+      sngQuadrantAngle := Species[int2ndPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+      dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+      dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+      if dblCosine = dblZero then
+        if dblSine > dblZero then
+          dblSine := 1.0
+        else
+          dblSine := -1.0
+      else
+        if dblSine = 0.0 then
+          if dblCosine > dblZero then
+            dblCosine := 1.0
+           else
+             dblCosine := -1.0;
+      intAjacent := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+      intOpposite := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+      Species[int2ndPnt].BeginSegment.pntRadial.x := Species[intNd].EndSegment.pntRadial.x;
+      Species[int2ndPnt].BeginSegment.pntRadial.y := Species[intNd].EndSegment.pntRadial.y;
+      Species[int2ndPnt].EndSegment.pntRadial.x := Species[int2ndPnt].BeginSegment.pntRadial.x + intAjacent;
+      Species[int2ndPnt].EndSegment.pntRadial.y := Species[int2ndPnt].BeginSegment.pntRadial.y + intOpposite;
+//      Species[intNd].EndSegment.int2ndXNd := int2ndPnt;
+//      Species[int2ndPnt].BeginSegment.int1stXNd := intNd;
+//      Species[int2ndPnt].BeginSegment.int2ndXNd := int1stPnt;
+      if int2ndPnt < SpeciesCount then
+      begin
+//        Species[int2ndPnt].EndSegment.int1stXNd := int2ndPnt;
+//        Species[int2ndPnt].EndSegment.int2ndXNd := int2ndPnt;
+      end;
+    end
+{    else
+      if not IsBeginNodeResolved(intNd) then
+      begin
+        if Species[intNd].dblAngle > kSemiCircle then
+          Species[int1stPnt].dblAngle := Species[intNd].dblAngle - dblHalfAngle - kSemiCircle
+        else
+          Species[int1stPnt].dblAngle := Species[intNd].dblAngle - dblHalfAngle + kSemiCircle;
+        cpptQuadrant := FindQudrant(Species[int1stPnt].dblAngle);
+        sngQuadrantAngle := Species[int1stPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((Species[int1stPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+        Species[int1stPnt].BeginSegment.pntRadial.x := Species[intNd].BeginSegment.pntRadial.x;
+        Species[int1stPnt].BeginSegment.pntRadial.y := Species[intNd].BeginSegment.pntRadial.y;
+        Species[int1stPnt].EndSegment.pntRadial.x := Species[int1stPnt].BeginSegment.pntRadial.x + intAjacent;
+        Species[int1stPnt].EndSegment.pntRadial.y := Species[int1stPnt].BeginSegment.pntRadial.y - intOpposite;
+        Species[intNd].BeginSegment.int1stXNd := int1stPnt;
+        Species[int1stPnt].BeginSegment.int1stXNd := intNd;
+        Species[int1stPnt].BeginSegment.int2ndXNd := int2ndPnt;
+        if int1stPnt < SpeciesCount then
+        begin
+          Species[int1stPnt].EndSegment.int1stXNd := int1stPnt;
+          Species[int1stPnt].EndSegment.int2ndXNd := int1stPnt;
+        end;
+        Species[int2ndPnt].dblAngle := Species[int1stPnt].dblAngle + dblAngl;
+        sngQuadrantAngle := Species[int2ndPnt].dblAngle - karryQF[Pred(cpptQuadrant)].A;
+        dblSine := sin(DegToRad(sngQuadrantAngle))* karryQF[cpptQuadrant].Y;
+        dblCosine := cos(DegToRad(sngQuadrantAngle)) * karryQF[cpptQuadrant].X;
+        if dblCosine = dblZero then
+          if dblSine > dblZero then
+            dblSine := 1.0
+          else
+            dblSine := -1.0
+        else
+          if dblSine = 0.0 then
+            if dblCosine > dblZero then
+              dblCosine := 1.0
+             else
+               dblCosine := -1.0;
+        intAjacent := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblCosine) * intPixelFactor;
+        intOpposite := Trunc((Species[int2ndPnt].BranchLength + 1.0) * dblSine) * intPixelFactor;
+        Species[int2ndPnt].BeginSegment.pntRadial.x := Species[intNd].BeginSegment.pntRadial.x;
+        Species[int2ndPnt].BeginSegment.pntRadial.y := Species[intNd].BeginSegment.pntRadial.y;
+        Species[int2ndPnt].EndSegment.pntRadial.x := Species[int2ndPnt].BeginSegment.pntRadial.x + intAjacent;
+        Species[int2ndPnt].EndSegment.pntRadial.y := Species[int2ndPnt].BeginSegment.pntRadial.y - intOpposite;
+        Species[intNd].BeginSegment.int2ndXNd := int2ndPnt;
+        Species[int2ndPnt].BeginSegment.int1stXNd := intNd;
+        Species[int2ndPnt].BeginSegment.int2ndXNd := int1stPnt;
+        if int2ndPnt < SpeciesCount then
+        begin
+          Species[int2ndPnt].EndSegment.int1stXNd := int2ndPnt;
+          Species[int2ndPnt].EndSegment.int2ndXNd := int2ndPnt;
+        end;
+      end;}
+end;
+
+function dblFindMaxLengths: double;
+var
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    Result := Species[0].BranchLength;
+    for inx := 1 to NodeCount - 1 do
+      if Species[inx].BranchLength > Result then
+       Result := Species[inx].BranchLength;
+  end;
+end;
+
+function dblFindMinLengths: double;
+var
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    Result := Species[0].BranchLength;
+    for inx := 1 to NodeCount - 1 do
+      if Species[inx].BranchLength < Result then
+       Result := Species[inx].BranchLength;
+  end;
+end;
+
+function intMaxPixelFactor(const wrdDsplyTr: word; var dblScale: double): integer;
+var
+  intMinPixels,
+  intPixels: integer;
+  dblFactor,
+  dblMin,
+  dblMax: double;
+
+begin
+  case wrdDsplyTr of
+    kRadialTree:
+      if Origin.ttoRadial.Width > Origin.ttoRadial.Height then
+        intPixels := Origin.ttoRadial.Height
+      else
+        intPixels := Origin.ttoRadial.Width;
+    kBracketTree:
+      if Origin.ttoBracket.Width > Origin.ttoBracket.Height then
+        intPixels := Origin.ttoBracket.Height
+      else
+        intPixels := Origin.ttoBracket.Width;
+    kTopologyOnlyTree:
+      if Origin.ttoTplgyOnly.Width > Origin.ttoTplgyOnly.Height then
+        intPixels := Origin.ttoTplgyOnly.Height
+      else
+        intPixels := Origin.ttoTplgyOnly.Width;
+  end;
+  dblMin := dblFindMinLengths;
+  dblMax := dblFindMaxLengths;
+  if dblMin = dblZero then
+    dblFactor := 1600.0
+  else
+    dblFactor := dblMax / dblMin;
+{  if dblMax < 10.0 then
+    if dblMin < 1.0 then
+    begin
+      intMinPixels := Trunc(1.0 / dblMin);
+      if intMinPixels > 100 then
+        Result := 100
+      else
+        Result := intMinPixels;
+    end
+    else
+      Result := 10
+  else}
+  if dblFactor > 1500.0 then
+    Result := 1
+  else
+    Result := Trunc(500.0 / dblMax);
+//    if dblFactor > 100.0 then
+//      Result := 10.0
+//    else
+//      if dblFactor > 10.0 then
+//        Result := 100.0
+//      else
+//        if dblFactor > 1.0 then
+//          Result := 1000.0;
+//    if dblMin < 1.0 then
+//      if dblMax > 100.0 then
+//        Result := 10
+//      else
+//        if dblMax > 10.0 then
+//          Result := 100
+//        else
+//          if dblMin < 0.0625 then
+//            Result := 16000
+//          else
+//            if dblMin < 0.125 then
+//              Result := 8000
+//            else
+//              if dblMin < 0.25 then
+//                Result := 4000
+//              else
+//                if dblMin < 0.5 then
+//                  Result := 2000
+//                else
+//                  if dblMin < 2.5 then
+//                    Result := 400
+//                  else
+//                    Result := 250
+//    else
+//      Result := (intPixels + intPixels div 2) div Trunc(dblMax * 1.5);
+  dblScale := 100.0 / Result;
+{  intSF := 1;
+  while (intPF > 0) and (intPF < 10) do
+  begin
+    dblMin := dblMin * 10.0;
+    intPF := Trunc(dblMin);
+    intSF := intSF * 10;
+  end;
+  intPF := Trunc(dblMax);
+  while (intPF > 0) and (intPF < 10) do
+  begin
+    dblMax := dblMax / 10.0;
+    intPF := Trunc(dblMax);
+    intSF := intSF * 10;
+  end;
+  Result := intSF;}
+end;
+
+function FindQudrant(sngAngle: single): CompassPnt;
+var
+  intAngle: integer;
+begin
+  intAngle := Trunc(sngAngle * 1000);
+  if intAngle mod 90000 = 0 then
+    result := CompassPnt(intAngle div 90000 * 2)
+  else
+    result := CompassPnt(intAngle div 90000 * 2 + 1);
+end;
+
+function intMaxRadialPosX: integer;
+var
+  inx: integer;
+begin
+  Result := 0;
+  with TestTableForSpeciesData do
+  begin
+    for inx := 0 to NodeCount - 2 do
+      With Species[inx].EndSegment do
+        if pntRadial.x > Result then
+          Result := pntRadial.x
+        else
+          if -pntRadial.x > Result then
+            Result := pntRadial.x;
+  end;
+end;
+
+function intMaxRadialPosY: integer;
+var
+  inx: integer;
+begin
+  Result := 0;
+  with TestTableForSpeciesData do
+  begin
+    for inx := 0 to NodeCount - 2 do
+      With Species[inx].EndSegment do
+        if pntRadial.y > Result then
+          Result := pntRadial.y
+        else
+          if -pntRadial.y > Result then
+            Result := -pntRadial.y;
+  end;
+end;
+
+procedure CreateRadialGraph;
+var
+  inx,
+  iny,
+  inz,
+  int1stPnt,
+  int2ndPnt: integer;
+  GrphPnt: TPoint;
+  ariFrstSgmntPnt: TSegmentPoints;
+  ariNextOpenNds,
+  ariOpenNodes: array of integer;
+begin
+  if boolGraphInitial then
+  begin
+    int1stPnt := -1;
+    int2ndPnt := -1;
+    inz := 0;
+    SetLength(ariOpenNodes, inz);
+    begin
+      for inx := 0 to 1 do
+        for iny := 0 to 1 do
+          ariFrstSgmntPnt[inx][iny] := -1;
+      CreateFirstSegment(ariFrstSgmntPnt);
+      for inx := 0 to 1 do
+        for iny := 0 to 1 do
+          if ariFrstSgmntPnt[inx][iny] > -1 then
+          begin
+            if Length(ariOpenNodes) > 0 then
+              inc(inz);
+            SetLength(ariOpenNodes, inz + 1);
+            ariOpenNodes[inz] := ariFrstSgmntPnt[inx][iny]
+          end;
+      while Length(ariOpenNodes) > 0 do
+      begin
+        iny := 0;
+        SetLength(ariNextOpenNds, iny);
+        for inx := 0 to High(ariOpenNodes) do
+        begin
+          FindPoints(ariOpenNodes[inx], int1stPnt, int2ndPnt);
+          CreateNode(ariOpenNodes[inx], int1stPnt, int2ndPnt);
+          if int1stPnt > TestTableForSpeciesData.SpeciesCount - 1 then
+          begin
+            if Length(ariNextOpenNds) > 0 then
+              inc(iny);
+            SetLength(ariNextOpenNds, iny + 1);
+            ariNextOpenNds[iny] := int1stPnt;
+          end;
+          if int2ndPnt > TestTableForSpeciesData.SpeciesCount - 1 then
+          begin
+            if Length(ariNextOpenNds) > 0 then
+              inc(iny);
+            SetLength(ariNextOpenNds, iny + 1);
+            ariNextOpenNds[iny] := int2ndPnt;
+          end;
+        end;
+        ariOpenNodes := ariNextOpenNds;
+      end;
+    end;
+    GrphPnt.x := intMaxRadialPosX;
+    GrphPnt.y := intMaxRadialPosY;
+    AssignRadialRange(GrphPnt, GrphPnt.x * 2, GrphPnt.y * 2);
+    with TestTableForSpeciesData do
+      with frmPIMD_B.strgrdDataTableProp do
+        for inx := 1 to NodeCount + 2 do
+        begin
+          Cells[inx, 7] := FloatToStrF(Species[inx - 1].dblAngle, ffFixed, 8, 2);
+          Cells[inx, 8] := IntToStr(Species[inx - 1].BeginSegment.int1stXNd);
+          Cells[inx, 9] := IntToStr(Species[inx - 1].BeginSegment.int2ndXNd);
+          Cells[inx, 10] := IntToStr(Species[inx - 1].EndSegment.int1stXNd);
+          Cells[inx, 11] := IntToStr(Species[inx - 1].EndSegment.int2ndXNd);
+          Cells[inx, 12] := IntToStr(Species[inx - 1].BeginSegment.pntRadial.x);
+          Cells[inx, 13] := IntToStr(Species[inx - 1].BeginSegment.pntRadial.y);
+          Cells[inx, 14] := IntToStr(Species[inx - 1].EndSegment.pntRadial.x);
+          Cells[inx, 15] := IntToStr(Species[inx - 1].EndSegment.pntRadial.y);
+        end;
+  end;
+end;
+
+function intHighestNodeLevel: integer;
+var
+  inx: integer;
+begin
+  Result := 0;
+  with TestTableForSpeciesData do
+    for inx := 0 to NodeCount - 1 do
+      if Species[inx].NodeLevel > Result then
+        Result := Species[inx].NodeLevel;
+end;
+
+procedure ShowGridTreeView;
+var
+  inxNode,
+  inxNodeSave,
+  inx2ndNodeSave,
+  inxCrrntNode,
+  inx1PNode,
+  inx2PNode,
+  inx1CNode,
+  inx2CNode,
+  intNdCnt,
+  inu,
+  iny,
+  inx: integer;
+  nd1PNode,
+  nd2PNode,
+  nd1CNode,
+  nd2CNode: TTreeNode;
+  arryintNodes,
+  arryiNStrt: array of array of integer;
+begin
+  with frmPIMD_B.trvwTreeGraph, TestTableForSpeciesData do
+  try
+    inu := 0;
+    inxNode := 0;
+    intNdCnt := NodeCount - SpeciesCount + 1;
+//    SetLength(arryiNStrt, inu + 1);
+//    SetLength(arryintNodes, inu + 1);
+    try
+      Items.Clear;
+      inx1PNode := NodeCount - 1;
+      inx2PNode := NodeCount;
+      for inxNode := inx1PNode to inx2PNode do
+      begin
+        if inxNode = inx1PNode then
+        begin
+          nd1PNode := Items.Add(nil, Species[inxNode].SpeciesName + '(' + IntToStr(inxNode) + '):' + FloatToStrF(Species[inxNode].BranchLength, ffFixed, 12, 4));
+          inx1CNode := Species[inxNode].EndSegment.int1stXNd;
+          inx2CNode := Species[inxNode].EndSegment.int2ndXNd;
+          if inx1CNode <> inx2CNode then
+          begin
+            nd1CNode := Items.AddChild(nd1PNode, Species[inx1CNode].SpeciesName + '(' + IntToStr(inx1CNode) + '):' + FloatToStrF(Species[inx1CNode].BranchLength, ffFixed, 12, 4));
+            nd2CNode := Items.AddChild(nd1PNode, Species[inx2CNode].SpeciesName + '(' + IntToStr(inx2CNode) + '):' + FloatToStrF(Species[inx2CNode].BranchLength, ffFixed, 12, 4));
+          end;
+        end
+        else
+        begin
+          nd2PNode := Items.Add(nil, Species[inxNode].SpeciesName + '(' + IntToStr(inxNode) + '):' + FloatToStrF(Species[inxNode].BranchLength, ffFixed, 12, 4));
+          inx1CNode := Species[inxNode].EndSegment.int1stXNd;
+          inx2CNode := Species[inxNode].EndSegment.int2ndXNd;
+          if inx1CNode <> inx2CNode then
+          begin
+            nd1CNode := Items.AddChild(nd2PNode, Species[inx1CNode].SpeciesName + '(' + IntToStr(inx1CNode) + '):' + FloatToStrF(Species[inx1CNode].BranchLength, ffFixed, 12, 4));
+            nd2CNode := Items.AddChild(nd2PNode, Species[inx2CNode].SpeciesName + '(' + IntToStr(inx2CNode) + '):' + FloatToStrF(Species[inx2CNode].BranchLength, ffFixed, 12, 4));
+          end;
+        end;
+        inxCrrntNode := inx1CNode;
+        inxNodeSave := inx2CNode;
+        iny := 0;
+        for inx := 0 to 1 do
+        begin
+          inx1CNode := Species[inxCrrntNode].EndSegment.int1stXNd;
+          inx2CNode := Species[inxCrrntNode].EndSegment.int2ndXNd;
+          while inx1CNode <> inx2CNode do
+          begin
+            if inx = 0 then
+            begin
+              nd2CNode := Items.AddChild(nd1CNode, Species[inx2CNode].SpeciesName + '(' + IntToStr(inx2CNode) + '):' + FloatToStrF(Species[inx2CNode].BranchLength, ffFixed, 12, 4));
+              nd1CNode := Items.AddChildFirst(nd1CNode, Species[inx1CNode].SpeciesName + '(' + IntToStr(inx1CNode) + '):' + FloatToStrF(Species[inx1CNode].BranchLength, ffFixed, 12, 4));
+              inx2CNode := Species[inx1CNode].EndSegment.int2ndXNd;
+              inx1CNode := Species[inx1CNode].EndSegment.int1stXNd;
+              iny := 1;
+            end
+            else
+            begin
+              nd1CNode := Items.AddChild(nd2CNode, Species[inx1CNode].SpeciesName + '(' + IntToStr(inx1CNode) + '):' + FloatToStrF(Species[inx1CNode].BranchLength, ffFixed, 12, 4));
+              nd2CNode := Items.AddChild(nd2CNode, Species[inx2CNode].SpeciesName + '(' + IntToStr(inx2CNode) + '):' + FloatToStrF(Species[inx2CNode].BranchLength, ffFixed, 12, 4));
+              inx1CNode := Species[inx2CNode].EndSegment.int1stXNd;
+              inx2CNode := Species[inx2CNode].EndSegment.int2ndXNd;
+//              iny := 0;
+            end;
+          end;
+          inxCrrntNode := inxNodeSave;
+        end;
+      end;
+{      SetLength(arryiNStrt[0], intBnryPwr(inu + 1));
+      SetLength(arryintNodes[0], intBnryPwr(inu + 1));
+      ColCount := 2;
+      RowCount := (Species[NodeCount - 1].Leaves + Species[NodeCount].Leaves) * 11;
+      for inx := 0 to intBnryPwr(inu + 1) - 1 do
+      begin
+        arryiNStrt[inu][inx] := RowCount * (inx + 1) div 3;
+        arryintNodes[inu][inx] := NodeCount + inx - 1;
+      end;
+      Cells[inu, arryiNStrt[inu][0]] := Species[NodeCount - 1].SpeciesName;
+      for inx := arryiNStrt[inu][0] + 1 to arryiNStrt[inu][1] - 1 do
+        Cells[inu, inx] := '*';
+      Cells[0, arryiNStrt[inu][1]]  := Species[NodeCount].SpeciesName;
+      while inxNode < intNdCnt do
+      begin
+        inc(inu);
+        ColCount := inu + 2;
+        SetLength(arryiNStrt, inu + 1);
+        SetLength(arryintNodes, inu + 1);
+        SetLength(arryiNStrt[inu], intBnryPwr(inu + 1));
+        SetLength(arryintNodes[inu], intBnryPwr(inu + 1));
+        for inx := 0 to intBnryPwr(inu) - 1 do
+          if Species[arryintNodes[inu - 1][inx]].EndSegment.int1stXNd <> Species[arryintNodes[inu - 1][inx]].EndSegment.int2ndXNd then
+          begin
+            arryiNStrt[inu][inx * 2] := arryiNStrt[inu - 1][inx] - Species[arryintNodes[inu - 1][inx]].Leaves;
+            arryintNodes[inu][inx * 2] := Species[arryintNodes[inu - 1][inx]].EndSegment.int1stXNd;
+            Cells[inu, arryiNStrt[inu][inx * 2]] := Species[arryintNodes[inu][inx * 2]].SpeciesName;
+            arryiNStrt[inu][inx * 2 + 1] := arryiNStrt[inu - 1][inx] + Species[arryintNodes[inu - 1][inx]].Leaves;
+            arryintNodes[inu][inx * 2 + 1] := Species[arryintNodes[inu - 1][inx]].EndSegment.int2ndXNd;
+            Cells[inu, arryiNStrt[inu][inx * 2 + 1]] := Species[arryintNodes[inu][inx * 2 + 1]].SpeciesName;
+            for iny := arryiNStrt[inu][inx * 2] + 1 to arryiNStrt[inu][inx * 2 + 1] - 1 do
+              Cells[inu, iny] := '*';
+            inc(inxNode);
+          end;
+      end;}
+    finally
+      frmPIMD_B.trvwTreeGraph.FullExpand;
+    end;
+  except
+    on E:exception do
+      MessageDlg(E.Message, mtError, [mbOK], 0);       // Show error message
+  end;
+end;
+
+function intAssignParentNodes(const intNL: integer): integer;
+var
+  inz,
+  iny,
+  inx: integer;
+begin
+  inz := 0;
+  Result := -1;
+  for inx := 0 to 2 do
+    ariNodeParent[inx] := -1;
+  with TestTableForSpeciesData do
+    for inx := NodeCount - 1 downto 0 do
+      if intNL <> -1 then
+        if intNL = Species[inx].NodeLevel then
+          for iny := 0 to inz do
+            if Species[inx].NodeParent = ariNodeParent[iny] then
+              break
+            else
+              if (ariNodeParent[iny] = -1) and ((Species[inx].NodeParent > SpeciesCount - 1) or ((inx = nodeCount - 1) and (Species[inx].NodeParent = 0))) then
+              begin
+                ariNodeParent[iny] := Species[inx].NodeParent;
+                Result := inz;
+                inc(inz);
+                break;
+              end;
+end;
+
+procedure MakeNewickNode(const intNL, intOffset: integer; var strNewick: string);
+var
+  intSgmntNd,
+  intPos,
+  inz,
+  iny,
+  inx: integer;
+  strNode: string;
+begin
+  strNewick := '';
+  intPos := 0;
+  intSgmntNd := intAssignParentNodes(intNL);
+  iny := 0;
+  with TestTableForSpeciesData do
+    for inx := NodeCount - 1 downto 0 do
+      if Species[inx].NodeLevel = intNL then
+      begin
+        for inz := 0 to intSgmntNd do
+        begin
+          if iny + 1 = inz then
+          begin
+            inc(iny);
+            SetLength(iarInsrtnPnt[intNL], iny + 1);
+          end;
+          if (ariNodeParent[inz] = Species[inx].NodeParent) or (Species[inx].NodeLevel = 0) then
+            if inx > (SpeciesCount - 1) then
+            begin
+              intPos := Pos('()', Copy(strNewick, intPos + 1, Length(strNewick) - intPos)) + 2;
+              iarInsrtnPnt[intNL][inz] := intOffset + intPos + Length(strNewick);
+              strNode := '():' + FloatToStrF(Species[inx].BranchLength, ffFixed, 10, 4) + ',';
+              strNewick := strNewick + strNode;
+            end
+            else
+              strNewick := strNewick + Species[inx].SpeciesName + ':' + FloatToStrF(Species[inx].BranchLength,  ffFixed, 10, 4) + ',';
+          end;
+        end;
+  if strNewick <> '' then
+    Delete(strNewick, Length(strNewick), 1);
+  if (strNewick <> '') and (iny = 0) then
+  begin
+    SetLength(iarInsrtnPnt[intNL], iny + 1);
+    iarInsrtnPnt[intNL][iny] := intOffset + 2;
+  end;
+end;
+
+procedure FindNewickPstn(const strNwck: string);
+var
+  intPos,
+  iny,
+  inx: integer;
+begin
+  SetLength(ariInsrtnPnt, 0);
+  intPos := 0;
+  iny := 0;
+  for inx := 0 to High(ariInsrtnNd) do
+  begin
+    intPos := Pos('()', Copy(strNwck, intPos + 1, Length(strNwck) - intPos)) + intPos + 1;
+    if intPos > 0 then
+    begin
+      if iny > 0 then
+        inc(iny);
+      SetLength(ariInsrtnPnt, iny + 1);
+      ariInsrtnPnt[iny] := intPos;
+    end;
+  end;
+end;
+
+procedure InsertNewickNodes(var strNwck: string);
+var
+  strWork: string;
+  inz,
+  iny,
+  inx: integer;
+begin
+  SetLength(ariNextNd, 0);
+  inz := 0;
+  with TestTableForSpeciesData do
+  begin
+    for inx := High(ariInsrtnNd) downto 0 do
+    begin
+      strWork := '';
+      for iny := NodeCount - 1 downto 0 do
+        if ariInsrtnNd[inx] = Species[iny].NodeParent then
+        begin
+          strWork := strWork + Species[iny].NewickToken + ',';
+          if iny > SpeciesCount - 1 then
+          begin
+            If inz > 0 then
+              inc(inz);
+            SetLength(ariNextNd, inz + 1);
+            ariNextNd[inz] := iny;
+          end;
+        end;
+      if Length(strWork) > 0 then
+        if strWork[Length(strWork)] = ',' then
+          Delete(strWork, Length(strWork), 1);
+      strNwck := Copy(strNwck, 1, ariInsrtnPnt[inx] - 1) + strWork + Copy(strNwck, ariInsrtnPnt[inx], Length(strNwck) - ariInsrtnPnt[inx] + 1);
+    end;
+  end;
+  ariInsrtnNd := ariNextNd;
+end;
+
+procedure MakeNewickFormat(var mmoNwckFrmt: TMemo);
+var
+  strNewick: string;
+begin
+  mmoNwckFrmt.Clear;
+  with TestTableForSpeciesData do
+  begin
+    strNewick := ',(' + Species[Species[NodeCount - 1].EndSegment.int1stXNd].NewickToken + ',' +
+                 Species[Species[NodeCount - 1].EndSegment.int2ndXNd].NewickToken +
+                 Species[NodeCount - 1].NewickToken + ');';
+    strNewick := '((' + Species[Species[NodeCount].EndSegment.int1stXNd].NewickToken + ',' +
+                 Species[Species[NodeCount].EndSegment.int2ndXNd].NewickToken +
+                 Species[NodeCount].NewickToken + strNewick;
+  end;
+  mmoNwckFrmt.Lines[0] := strNewick;
+end;
+
+procedure AssignReplicates(const intBootStraps: integer; var strgrdRplcts: TStringGrid);
+var
+  intSeed,
+  intRplctLngth,
+  intCellCol,
+  inx,
+  iny: integer;
+begin
+  intRplctLngth := TestTableForSpeciesData.TestCount;
+  SetLength(iarReplicates, intBootStraps, intRplctLngth);
+  intSeed := intRplctLngth - 1;
+  intCellCol := intRplctLngth + 1;
+  //RandSeed := 1039; // 115;
+  Randomize;
+  for inx := 0 to intBootStraps - 1 do
+  begin
+    for iny := 0 to intSeed do
+    begin
+      iarReplicates[inx, iny] := Random(intSeed);
+    end;
+  end;
+  with strgrdRplcts, TestTableForSpeciesData do
+  begin
+    RowCount := intBootStraps + 1;
+    ColCount := intCellCol;
+    Cells[0, 0] := 'Replicates';
+    for inx := 1 to intRplctLngth do
+      Cells[inx, 0] := 'Rplct Test:' + IntToStr(inx - 1);
+    for iny := 1 to intBootStraps do
+      Cells[0, iny] := IntToStr(iny - 1);
+    for iny := 1 to intBootStraps do
+      for inx := 1 to intRplctLngth do
+        Cells[inx, iny] := IntToStr(iarReplicates[iny - 1, inx - 1]);
+    AutoSizeColumns;
+  end;
+end;
+
+function dblSplitLength(const dblFctrd: double): double;
+const
+  kSpltFctr = 1.75;
+begin
+  if dblFctrd < dblZero then
+    Result := dblZero
+  else
+    Result := dblFctrd / kSpltFctr;
+end;
+
+procedure MakeInteriorNodeFile(const strFileName: string);
+var
+  inx: integer;
+  strWork: string;
+  flNodeText: Text;
+  boolBSCalculated: boolean;
+begin
+  with TestTableForSpeciesData do
+  begin
+    if Length(frmPIMD_B.strgrdDataTableProp.Cells[SpeciesCount + 1, 32]) > 0 then
+      boolBSCalculated := True
+    else
+      boolBSCalculated := False;
+    Assign(flNodeText, strFileName);
+    Rewrite(flNodeText);
+    strWork := '"Parent Name","Parent Length","1st Child Name","1st Child Length","2nd Child Name","2nd Child Length"';
+    if boolBSCalculated then
+      strWork := strWork + ',"Boot Strap"';
+    WriteLn(flNodeText, strWork);
+    for inx := SpeciesCount to NodeCount do
+    begin
+      strWork := '"' + Species[inx].SpeciesName + '",';
+      Write(flNodeText, strWork);
+{      if inx = NodeCount - 1 then
+      begin
+        dblFactor := dblSplitLength(Species[inx].BranchLength);
+        strWork := FloatToStrF(dblFactor, ffFixed, 10, 4) + ',';
+      end
+      else}
+        strWork := FloatToStrF(Species[inx].BranchLength, ffFixed, 10, 4) + ',';
+      Write(flNodeText, strWork);
+      strWork := '"' + Species[Species[inx].EndSegment.int1stXNd].SpeciesName + '",';
+      Write(flNodeText, strWork);
+      strWork := FloatToStrF(Species[Species[inx].EndSegment.int1stXNd].BranchLength, ffFixed, 10, 4) + ',';
+      Write(flNodeText, strWork);
+      strWork := '"' + Species[Species[inx].EndSegment.int2ndXNd].SpeciesName + '",';
+      Write(flNodeText, strWork);
+      strWork := FloatToStrF(Species[Species[inx].EndSegment.int2ndXNd].BranchLength, ffFixed, 10, 4);
+      Write(flNodeText, strWork);
+      if boolBSCalculated then
+      begin
+        strWork := ',"' + frmPIMD_B.strgrdDataTableProp.Cells[inx + 1, 32] + '"';
+        Write(flNodeText, strWork);
+      end;
+      WriteLn(flNodeText);
+    end;
+  end;
+  Close(flNodeText);
+end;
+
+{
+  Displays replicate raw Bimary data for a page of the replicate set.
+  Parameters: intIndex replicate set to use
+              strgrdRRD string grid to display raw replicate dataset with replicates being the random column selections.
+}
+procedure DisplayBootStrapPageBnry(const intIndex: integer);
+var
+  iny,
+  inx: integer;
+begin
+  with frmPIMD_B.strgrdRplctRwDt, TestTableForSpeciesData do
+  begin
+    RowCount := SpeciesCount + 1;
+    ColCount := TestCount + 1;
+    Cells[0, 0] := 'Replicate:' + IntToStr(intIndex);
+    for iny := 1 to TestCount do
+      Cells[iny, 0] := TestTitle[iarReplicates[intIndex][iny - 1]];
+    for inx := 1 to SpeciesCount do
+    begin
+      Cells[0, inx] := Species[inx - 1].SpeciesName;
+      for iny := 1 to TestCount do
+        Cells[iny, inx] := carBinary[intIndex][inx - 1][iny - 1];
+    end;
+    AutoSizeColumns;
+  end;
+end;
+
+{
+  Dispalys replicate raw Measurment data for a page of the replicate set.
+  Parameters: intIndex replicate set to use
+              strgrdRRD string grid to display raw replicate dataset with replicates being the random column selections.
+}
+procedure DisplayBootStrapPageMsrmnt(const intIndex: integer);
+var
+  iny,
+  inx: integer;
+begin
+  with frmPIMD_B.strgrdRplctRwDt, TestTableForSpeciesData do
+  begin
+    RowCount := SpeciesCount + 1;
+    ColCount := TestCount + 1;
+    Cells[0, 0] := 'Replicate:' + IntToStr(intIndex);
+    for iny := 1 to TestCount do
+      Cells[iny, 0] := TestTitle[iarReplicates[intIndex][iny - 1]];
+    for inx := 1 to SpeciesCount do
+    begin
+      Cells[0, inx] := Species[inx - 1].SpeciesName;
+      for iny := 1 to TestCount do
+        Cells[iny, inx] := FloatToStrF(darBtStrpRwDtMsrmnt[intIndex][inx - 1][iny - 1], ffFixed, 10, 3);
+    end;
+    AutoSizeColumns;
+  end;
+end;
+
+procedure CheckForReplicates(const inRplcts: integer; var cbxItems, cbxFDMDsply: TComboBox);
+var
+  inz,
+  iny,
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    SetLength(DuplicateNodes, NodeCount - SpeciesCount);
+    case wrdDataType of
+      0..1: begin
+        SetLength(carBinary, inRplcts);
+        for inx := 0 to inRplcts - 1 do
+        begin
+          cbxItems.AddItem(IntToStr(inx), nil);
+          cbxFDMDsply.AddItem(IntToStr(inx), nil);
+          SetLength(carBinary[inx], SpeciesCount);
+          for iny := 0 to SpeciesCount - 1 do
+          begin
+            SetLength(carBinary[inx][iny], TestCount);
+            for inz := 0 to TestCount - 1 do
+              carBinary[inx][iny][inz] := Binary[iny][iarReplicates[inx][inz]];
+          end;
+        end;
+        cbxItems.Enabled := True;
+        cbxItems.ItemIndex := 0;
+        DisplayBootStrapPageBnry(cbxItems.ItemIndex);
+      end;
+      2: begin
+        SetLength(darBtStrpRwDtMsrmnt, inRplcts);
+        for inx := 0 to inRplcts - 1 do
+        begin
+          cbxItems.AddItem(IntToStr(inx), nil);
+          cbxFDMDsply.AddItem(IntToStr(inx), nil);
+          SetLength(darBtStrpRwDtMsrmnt[inx], SpeciesCount);
+          for iny := 0 to SpeciesCount - 1 do
+          begin
+            SetLength(darBtStrpRwDtMsrmnt[inx][iny], TestCount);
+            for inz := 0 to TestCount - 1 do
+              darBtStrpRwDtMsrmnt[inx][iny][inz] := Measurement[iny][iarReplicates[inx][inz]];
+          end;
+        end;
+        cbxItems.Enabled := True;
+        cbxItems.ItemIndex := 0;
+        DisplayBootStrapPageMsrmnt(cbxItems.ItemIndex);
+      end;
+    end;
+  end;
+end;
+
+function boolMoreNodeLevels(const intLevel: integer): boolean;
+var
+  inx: integer;
+begin
+  Result := False;
+  with TestTableForSpeciesData do
+    for inx := 0 to NodeCount - 2 do
+      if Species[inx].NodeLevel = intLevel then
+      begin
+        Result := True;
+        break;
+      end;
+end;
+
+function intMaxBracketPosX: integer;
+var
+  inx: integer;
+begin
+  Result := 0;
+  with TestTableForSpeciesData do
+  begin
+    for inx := 0 to NodeCount - 2 do
+      With Species[inx].VrtclPosition do
+      begin
+        if TopHrzntl.x > Result then
+          Result := TopHrzntl.x;
+        if BtmHrzntl.x > Result then
+          Result := BtmHrzntl.x;
+      end;
+  end;
+  Result := Result + 200;
+end;
+
+function intMaxBracketPosY: integer;
+var
+  inx: integer;
+begin
+  Result := 0;
+  with TestTableForSpeciesData do
+  begin
+    for inx := 0 to NodeCount - 2 do
+      With Species[inx].VrtclPosition do
+        if EndVrtcl.y > Result then
+          Result := EndVrtcl.y;
+  end;
+  Result := Result + 20;
+end;
+
+function intHighestLevel: integer;
+var
+  inx: integer;
+begin
+  Result := 0;
+  with TestTableForSpeciesData do
+    for inx := 0 to NodeCount - 2 do
+      With Species[inx] do
+        if NodeLevel > Result then
+          Result := Nodelevel;
+end;
+
+procedure CreateBracketTree(var HomeVrtclPosition: TVrtclPosition; var intScaleTree: integer; var dblScaleValue: double);
+var
+  GrphPnt: TPoint;
+  intLeaves,
+  intHmVrtclSpc,
+  inx: integer;
+begin
+  with TestTableForSpeciesData do
+  begin
+    AssignBracketRange(GrphPnt, 0, 0);
+    GrphPnt.x := kStartBracketX;
+    intLeaves := Species[NodeCount - 1].Leaves + Species[NodeCount].Leaves;
+    intHmVrtclSpc := intLeaves * intLeaves * kVerticalBracket div 4 + 300;
+    intScaleTree := 5 * intPixelFactor * kShortLengthFactor;
+    GrphPnt.y := intHmVrtclSpc div 2;
+    HomeVrtclPosition.BgnVrtcl.y := Species[NodeCount].TplgyOnly.BgnHrzntl.y;  //intHmVrtclSpc div 3;
+    HomeVrtclPosition.BgnVrtcl.x := GrphPnt.x;
+    HomeVrtclPosition.TopHrzntl.y := HomeVrtclPosition.BgnVrtcl.y;
+    HomeVrtclPosition.TopHrzntl.x := HomeVrtclPosition.BgnVrtcl.x + Trunc(Species[NodeCount].BranchLength * intPixelFactor * kShortLengthFactor);
+    HomeVrtclPosition.MidPoint.y := (Species[NodeCount - 1].TplgyOnly.BgnHrzntl.y + Species[NodeCount].TplgyOnly.BgnHrzntl.y) div 2;   //GrphPnt.y;
+    HomeVrtclPosition.MidPoint.x := GrphPnt.x;
+    HomeVrtclPosition.EndVrtcl.y := Species[NodeCount - 1].TplgyOnly.BgnHrzntl.y;
+    HomeVrtclPosition.EndVrtcl.x := GrphPnt.x;
+    HomeVrtclPosition.BtmHrzntl.y := HomeVrtclPosition.EndVrtcl.y;
+    HomeVrtclPosition.BtmHrzntl.x := HomeVrtclPosition.EndVrtcl.x + Trunc(Species[NodeCount - 1].BranchLength * intPixelFactor * kShortLengthFactor);
+    for inx := NodeCount downto SpeciesCount do
+    begin
+      if inx = NodeCount then
+      begin
+        Species[inx].VrtclPosition.MidPoint.x := HomeVrtclPosition.TopHrzntl.x;
+        Species[inx].VrtclPosition.MidPoint.y := HomeVrtclPosition.TopHrzntl.y;
+        Species[inx].VrtclPosition.BgnVrtcl.x := HomeVrtclPosition.TopHrzntl.x;
+        Species[inx].VrtclPosition.EndVrtcl.x := HomeVrtclPosition.TopHrzntl.x;
+      end
+      else
+        if inx = NodeCount - 1 then
+        begin
+          Species[inx].VrtclPosition.MidPoint.x := HomeVrtclPosition.BtmHrzntl.x;
+          Species[inx].VrtclPosition.MidPoint.y := HomeVrtclPosition.BtmHrzntl.y;
+          Species[inx].VrtclPosition.BgnVrtcl.x := HomeVrtclPosition.BtmHrzntl.x;
+          Species[inx].VrtclPosition.EndVrtcl.x := HomeVrtclPosition.BtmHrzntl.x;
+        end
+        else
+          if inx = Species[Species[inx].NodeParent].EndSegment.int1stXNd then
+          begin
+            Species[inx].VrtclPosition.MidPoint.x := Species[Species[inx].NodeParent].VrtclPosition.TopHrzntl.x;
+            Species[inx].VrtclPosition.MidPoint.y := Species[Species[inx].NodeParent].VrtclPosition.TopHrzntl.y;  //.TplgyOnly.EndHrzntl.y;  //
+            Species[inx].VrtclPosition.BgnVrtcl.x := Species[Species[inx].NodeParent].VrtclPosition.TopHrzntl.x;
+            Species[inx].VrtclPosition.EndVrtcl.x := Species[Species[inx].NodeParent].VrtclPosition.TopHrzntl.x;
+          end
+          else
+          begin
+            Species[inx].VrtclPosition.MidPoint.x := Species[Species[inx].NodeParent].VrtclPosition.BtmHrzntl.x;
+            Species[inx].VrtclPosition.MidPoint.y := Species[Species[inx].NodeParent].VrtclPosition.BtmHrzntl.y;  //.TplgyOnly.EndHrzntl.y;  //
+            Species[inx].VrtclPosition.BgnVrtcl.x := Species[Species[inx].NodeParent].VrtclPosition.BtmHrzntl.x;
+            Species[inx].VrtclPosition.EndVrtcl.x := Species[Species[inx].NodeParent].VrtclPosition.BtmHrzntl.x;
+          end;
+      Species[inx].VrtclPosition.BgnVrtcl.y := Species[Species[inx].EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.y;  // Species[inx].Leaves * kVerticalBracket; //div 2;
+      Species[inx].VrtclPosition.EndVrtcl.y := Species[Species[inx].EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.y;  // Species[inx].Leaves * kVerticalBracket; //div 2;
+      Species[inx].VrtclPosition.TopHrzntl.x := Species[inx].VrtclPosition.BgnVrtcl.x + Trunc(Species[Species[inx].EndSegment.int1stXNd].BranchLength * intPixelFactor * kShortLengthFactor);
+      Species[inx].VrtclPosition.TopHrzntl.y := Species[inx].VrtclPosition.BgnVrtcl.y;
+      Species[inx].VrtclPosition.BtmHrzntl.x := Species[inx].VrtclPosition.EndVrtcl.x + Trunc(Species[Species[inx].EndSegment.int2ndXNd].BranchLength * intPixelFactor * kShortLengthFactor);
+      Species[inx].VrtclPosition.BtmHrzntl.y := Species[inx].VrtclPosition.EndVrtcl.y;
+      if Species[Species[inx].EndSegment.int1stXNd].EndSegment.int1stXNd = Species[Species[inx].EndSegment.int1stXNd].EndSegment.int2ndXNd then
+      begin
+        Species[Species[inx].EndSegment.int1stXNd].VrtclPosition.MidPoint.x := Species[inx].VrtclPosition.TopHrzntl.x;
+        Species[Species[inx].EndSegment.int1stXNd].VrtclPosition.MidPoint.y := Species[inx].VrtclPosition.TopHrzntl.y;
+      end;
+      if Species[Species[inx].EndSegment.int2ndXNd].EndSegment.int1stXNd = Species[Species[inx].EndSegment.int2ndXNd].EndSegment.int2ndXNd then
+      begin
+        Species[Species[inx].EndSegment.int2ndXNd].VrtclPosition.MidPoint.x := Species[inx].VrtclPosition.BtmHrzntl.x;
+        Species[Species[inx].EndSegment.int2ndXNd].VrtclPosition.MidPoint.y := Species[inx].VrtclPosition.BtmHrzntl.y;
+      end;
+    end;
+    AssignBracketRange(GrphPnt, intMaxBracketPosX, intMaxBracketPosY);
+    for inx := 1 to NodeCount + 1 do
+      with frmPIMD_B.strgrdDataTableProp, Species[inx - 1].VrtclPosition do
+      begin
+        Cells[inx, 17] := IntToStr(BgnVrtcl.x);
+        Cells[inx, 18] := IntToStr(BgnVrtcl.Y);
+        Cells[inx, 19] := IntToStr(TopHrzntl.x);
+        Cells[inx, 20] := IntToStr(TopHrzntl.Y);
+        Cells[inx, 21] := IntToStr(MidPoint.x);
+        Cells[inx, 22] := IntToStr(MidPoint.Y);
+        Cells[inx, 23] := IntToStr(EndVrtcl.x);
+        Cells[inx, 24] := IntToStr(EndVrtcl.Y);
+        Cells[inx, 25] := IntToStr(BtmHrzntl.x);
+        Cells[inx, 26] := IntToStr(BtmHrzntl.Y);
+        Cells[inx, 27] := IntToStr(intVrtclLngth);
+        Cells[inx, 28] := IntToStr(intVrtclSpc);
+        Cells[inx, 29] := IntToStr(VrtclTopLngth);
+        Cells[inx, 30] := IntToStr(VrtclBttmLngth);
+        Cells[inx, 31] := IntToStr(Species[inx - 1].NodeTier);
+      end;
+  end;
+end;
+
+function boolConnected: boolean;
+var
+  iny: integer;
+begin
+  Result := True;
+  with TestTableForSpeciesData do
+    for iny := SpeciesCount to NodeCount do
+      Result := Result and Species[iny].TplgyOnly.Connected;
+end;
+
+procedure CreateTopologyOnlyTree;
+var
+  GrphPnt: TPoint;
+  strWork: string;
+  intStrtngPntX,
+  intVrtBrckHghtY,
+  intParent,
+  intHeightPos,
+  intNext,
+  intHigh,
+  inx,
+  iny,
+  inz: integer;
+const
+  kintAllocated = -1;
+  kstrAllocated = 'Allocated';
+  kstrUnallocated = 'Unallocated';
+
+procedure AllocateReservation(const inxBrckt, inxNode: integer; var inxNext: integer);
+begin
+  if inxNode = Length(arryinxBracket[inxBrckt]) then
+  begin
+    SetLength(arryinxBracket[inxBrckt], inxNode + 1);
+    SetLength(arstrConnected[inxBrckt], inxNode + 1);
+    arryinxBracket[inxBrckt, inxNode] := kintAllocated;
+    arstrConnected[inxBrckt, inxNode] := kstrAllocated;
+    inxNext := inxNode + 1;
+ end;
+end;
+
+begin
+ try
+  with TestTableForSpeciesData, frmPIMD_B do
+  try
+    TierCount := intHighestLevel + 1;
+    intStrtngPntX := kStartBracketX + kHrzntlBrcktTO * TierCount;
+    AssignTplgyOnlyRange(GrphPnt, intStrtngPntX + 350, intMaxBracketPosY);
+    intHeightPos := kStrtBrcktTOY;
+    inz := 0;
+    SetLength(arryinxBracket, inz + 1);
+    SetLength(arstrConnected, inz + 1);
+    SetLength(arstrConnected[inz], SpeciesCount);
+    if boolBootStrap then
+      intVrtBrckHghtY := kVrtclBrcktTOBS
+    else
+      intVrtBrckHghtY := kVrtclBrcktTO;
+    for iny := 0 to NodeCount do
+      with Species[iny].TplgyOnly do
+      begin
+        Completed := False;
+        Connected := False;
+        Attached := False;
+        Drawn := False;
+        if iny < SpeciesCount then
+          arstrConnected[inz, iny] := kstrUnallocated;
+      end;
+    for iny := 0 to SpeciesCount - 1 do
+      with Species[arryinxBracket[inz, iny]] do
+        with TplgyOnly do
+        begin
+          Attached := True;
+          BgnHrzntl.y := intHeightPos;
+          BgnHrzntl.x := intStrtngPntX - kHrzntlBrcktTO;
+          EndHrzntl.y := intHeightPos;
+          EndHrzntl.x := intStrtngPntX;
+          TopVrtcl.y := intHeightPos;
+          TopVrtcl.x := intStrtngPntX;
+          BtmVrtcl.y := intHeightPos;
+          BtmVrtcl.x := intStrtngPntX;
+          Drawn := True;
+          inc(intHeightPos, intVrtBrckHghtY);
+        end;
+    for iny := 0 to SpeciesCount - 1 do
+      with Species[arryinxBracket[inz][iny]] do
+        with TplgyOnly do
+          arstrConnected[inz, iny] := strToF(Connected, 'Connected-0', 'Unconnected-0');
+    repeat
+      inc(inz);
+      inx := 0;
+      intNext := 0;
+      SetLength(arryinxBracket, inz + 1);
+      SetLength(arstrConnected, inz + 1);
+      intParent := kintAllocated;
+      intHigh := High(arryinxBracket[inz - 1]);
+      for iny := 0 to intHigh + 1 do
+        if iny < intHigh + 1 then
+          with Species[arryinxBracket[inz - 1, iny]] do
+            with TplgyOnly do
+            begin
+              AllocateReservation(inz, inx, intNext);
+              if intParent = kintAllocated then
+                intParent := NodeParent
+              else
+                if intParent = NodeParent then
+                begin
+                  arryinxBracket[inz, inx] := NodeParent;
+                  arstrConnected[inz, inx] := 'Unconnected';
+                  Connected := True;
+                  Species[arryinxBracket[inz - 1, iny - 1]].TplgyOnly.Connected := True;
+                  Species[arryinxBracket[inz, inx]].TplgyOnly.Attached := True;
+                  arstrConnected[inz - 1, iny] := 'Connected';
+                  arstrConnected[inz - 1, iny - 1] := 'Connected';
+                  intParent := kintAllocated;
+//                  Species[arryinxBracket[inz, inx]].TplgyOnly.Drawn := True;
+                  inx := intNext;
+                end
+                else
+                begin
+                  arryinxBracket[inz, inx] := arryinxBracket[inz - 1, iny - 1];
+                  arstrConnected[inz, inx] := 'Unconnected';
+                  Species[arryinxBracket[inz, inx]].TplgyOnly.Attached := True;
+                  intParent := NodeParent;
+                  Species[arryinxBracket[inz, inx]].TplgyOnly.Drawn := True;
+                  inx := intNext;
+                end;
+            end
+         else
+           if arryinxBracket[inz, inx] = kintAllocated then
+           begin
+             Species[arryinxBracket[inz, inx]].TplgyOnly.Attached := True;
+             arryinxBracket[inz, inx] := arryinxBracket[inz - 1, intHigh];
+             arstrConnected[inz, inx] := 'Unconnected';
+             Species[arryinxBracket[inz, inx]].TplgyOnly.Drawn := True;
+           end;
+      for iny := 0 to High(arryinxBracket[inz]) do
+        with Species[arryinxBracket[inz, iny]] do
+          if (TplgyOnly.Drawn) and (not TplgyOnly.Completed) then  // then //and (not TplgyOnly.Connected) then
+            TplgyOnly.BgnHrzntl.x := TplgyOnly.BgnHrzntl.x - kHrzntlBrcktTO  // Unconnected lines extended
+          else
+            if (Species[EndSegment.int1stXNd].TplgyOnly.Connected) and  (Species[EndSegment.int2ndXNd].TplgyOnly.Connected) then
+            begin
+              Species[EndSegment.int1stXNd].TplgyOnly.Completed := True;
+              Species[EndSegment.int2ndXNd].TplgyOnly.Completed := True;
+//              if Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.y > Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.y then
+//              begin
+                TplgyOnly.TopVrtcl.y := Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.y;
+                TplgyOnly.BtmVrtcl.y := Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.y;
+                TplgyOnly.TopVrtcl.x := Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.x;
+                TplgyOnly.BtmVrtcl.x := Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.x;
+//              end
+//              else
+//              begin
+//                TplgyOnly.TopVrtcl.y := Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.y;
+//                TplgyOnly.BtmVrtcl.y := Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.y;
+//                TplgyOnly.TopVrtcl.x := Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.x;
+//                TplgyOnly.BtmVrtcl.x := Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.x;
+//              end;
+              TplgyOnly.EndHrzntl.y := TplgyOnly.TopVrtcl.y - (TplgyOnly.TopVrtcl.y - TplgyOnly.BtmVrtcl.y) div 2; // kVrtclBrcktTO div 2;
+              TplgyOnly.BgnHrzntl.y := TplgyOnly.TopVrtcl.y - (TplgyOnly.TopVrtcl.y - TplgyOnly.BtmVrtcl.y) div 2 ;
+              TplgyOnly.EndHrzntl.x := TplgyOnly.TopVrtcl.x;
+              TplgyOnly.BgnHrzntl.x := TplgyOnly.EndHrzntl.x - kHrzntlBrcktTO;
+              TplgyOnly.Drawn := True;
+            end;
+//            else
+//            begin
+//              TplgyOnly.BgnHrzntl.x := TplgyOnly.BgnHrzntl.x - kHrzntlBrcktTO;  // Unconnected lines extended
+//              if Species[EndSegment.int1stXNd].TplgyOnly.Drawn then
+//                Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.x := Species[EndSegment.int1stXNd].TplgyOnly.BgnHrzntl.x - kHrzntlBrcktTO;
+//              if Species[EndSegment.int2ndXNd].TplgyOnly.Drawn then
+//                Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.x := Species[EndSegment.int2ndXNd].TplgyOnly.BgnHrzntl.x - kHrzntlBrcktTO;
+//            end;}
+    until Length(arryinxBracket[inz]) = 2; // inz = 4; //
+    TierCount := inz;
+//    inx := 0;
+//    for iny := 0 to SpeciesCount - 1 do
+//      with Species[arryinxBracket[0][iny]].TplgyOnly do
+//        if not Connected then
+//        begin
+//          BgnHrzntl.x := BgnHrzntl.x - kHrzntlBrcktTO;  // Unconnected lines extended
+//          SetLength(arryinxSpecies, inx + 1);
+//          arryinxSpecies[inx] := arryinxBracket[0][iny];
+//          inc(inx);
+//        end;
+//    while not boolConnected do
+//    begin
+{      inx := 0;
+      SetLength(arryinxBracket, 2);
+      SetLength(arryinxBracket[1], inx);
+      boolParent := False;
+      boolPending := False;
+      for iny := 0 to High(arryinxBracket[1]) do
+        if boolPending then
+          if NodeParent = intParent then
+          begin
+            Connected := True;
+            Species[arryinxBracket[1][iny - 1]].TplgyOnly.Connected := True;
+            boolPending := False;
+          end
+          else
+            intParent := NodeParent
+        else
+        begin
+          intParent := NodeParent;
+          boolPending := True;
+        end;
+        if not Species[arryinxBracket[0][iny]].TplgyOnly.Connected then
+        begin
+          SetLength(arryinxBracket[1], inx + 1);
+          arryinxBracket[1][inx] := arryinxBracket[0][iny];
+//          Species[arryinxBracket[1][inx]].TplgyOnly.Connected := True;
+          inc(inx);
+        end
+        else
+          if not boolUsed then
+          begin
+            SetLength(arryinxBracket[1], inx + 1);
+            arryinxBracket[1][inx] := Species[arryinxBracket[0][iny]].NodeParent;
+            Species[Species[arryinxBracket[1][inx]].NodeParent].TplgyOnly.TopVrtcl.y := Species[arryinxBracket[0][iny]].TplgyOnly.BgnHrzntl.y;
+            Species[Species[arryinxBracket[1][inx]].NodeParent].TplgyOnly.TopVrtcl.x := Species[arryinxBracket[0][iny]].TplgyOnly.BgnHrzntl.x;
+            boolUsed := True;
+          end
+          else
+          begin
+            Species[Species[arryinxBracket[1][inx]].NodeParent].TplgyOnly.BtmVrtcl.y := Species[arryinxBracket[0][iny]].TplgyOnly.BgnHrzntl.y;
+            Species[Species[arryinxBracket[1][inx]].NodeParent].TplgyOnly.BtmVrtcl.x := Species[arryinxBracket[0][iny]].TplgyOnly.BgnHrzntl.x;
+            boolUsed := False;
+            inc(inx);
+          end;
+    end;}
+//      for iny := 0 to inx - 1 do
+//         with Species[arryinxBracket[1][iny]].TplgyOnly do
+//           BgnHrzntl.x := BgnHrzntl.x - kHrzntlBrcktTO;}
+//    end;
+    for inx := 1 to NodeCount + 1 do
+      with Species[inx - 1].TplgyOnly, frmPIMD_B.strgrdDataTableProp do
+      begin
+        Cells[inx, 35] := IntToStr(TopVrtcl.x);
+        Cells[inx, 36] := IntToStr(TopVrtcl.y);
+        Cells[inx, 37] := IntToStr(BtmVrtcl.x);
+        Cells[inx, 38] := IntToStr(BtmVrtcl.y);
+        Cells[inx, 39] := IntToStr(BgnHrzntl.x);
+        Cells[inx, 40] := IntToStr(BgnHrzntl.y);
+        Cells[inx, 41] := IntToStr(EndHrzntl.x);
+        Cells[inx, 42] := IntToStr(EndHrzntl.y);
+        Cells[inx, 43] := strToF(Completed, 'Completed', 'Uncompleted');
+        Cells[inx, 44] := strToF(Connected, 'Connected', 'Unconnected');
+        Cells[inx, 45] := strToF(Drawn, 'Drawn', 'UnDrawn');
+      end;
+    strlstArrayErrs.Clear;
+    for inx := 0 to High(arryinxBracket) do
+    begin
+      strWork := '[';
+      for iny := 0 to High(arryinxBracket[inx]) do
+      begin
+        strWork := StrWork + IntToStr(arryinxBracket[inx, iny]);
+        if iny < High(arryinxBracket[inx]) then
+          strWork := StrWork + ', ';
+      end;
+      strWork := StrWork + ']';
+      strlstArrayErrs.Append(strWork);
+//      strWork := '[';
+//      for iny := 0 to High(arryinxBracket[inx]) do
+//      begin
+//        strWork := StrWork + strToF(Species[arryinxBracket[inx, iny]].TplgyOnly.Connected, 'Connected', 'Unconnected');
+//        if iny < High(arryinxBracket[inx]) then
+//          strWork := StrWork + ', ';
+//      end;
+//      strWork := StrWork + ']';
+//      strlstArrayErrs.Append(strWork);
+    end;
+    for inx := 0 to High(arstrConnected) do
+    begin
+      strWork := '[';
+      for iny := 0 to High(arstrConnected[inx]) do
+      begin
+        strWork := StrWork + arstrConnected[inx, iny];
+        if iny < High(arstrConnected[inx]) then
+          strWork := StrWork + ', ';
+      end;
+      strWork := StrWork + ']';
+      strlstArrayErrs.Append(strWork);
+    end;
+    mnuShowCalcErrs.Enabled := True;
+  finally
+    frmPIMD_B.strgrdDataTableProp.AutoSizeColumns;
+  end;
+ except
+   on E:exception do
+     MessageDlg(E.Message, mtError, [mbOK], 0);       // Send message to dialog box
+ end;
+end;
+
+procedure SaveReplicateDataFile(const strFlNm: string; const intRplct: integer);
+var
+  inx,
+  iny: integer;
+  strtypRD: TStrings;
+  strWork: string;
+begin
+  with TestTableForSpeciesData do
+    try
+      strtypRD := TStringList.Create;
+      try
+        strtypRD.Clear;
+        strWork := SpeciesTitle + '-Rplct:' + IntToStr(intRplct) + ',';
+        for inx := 0 to TestCount - 1 do
+          strWork := strWork + TestTitle[iarReplicates[intRplct, inx]] + ',';
+        Delete(strWork, Length(strWork), 1);
+        strtypRD.Append(strWork);
+        for iny := 0 to SpeciesCount - 1 do
+        begin
+          strWork := Species[iny].SpeciesName + ',';
+          for inx := 0 to TestCount - 1 do
+            if wrdDataType in [0..1] then
+              strWork := strWork + carBinary[intRplct][iny, inx] + ','
+            else
+              strWork := strWork + FloatToStrF(darBtStrpRwDtMsrmnt[intRplct][iny, inx], ffFixed, 10, 4) + ',';
+          Delete(strWork, Length(strWork), 1);
+          strtypRD.Append(strWork);
+        end;
+        strtypRD.SaveToFile(strFlNm);
+      finally
+        strtypRD.Free;
+      end;
+    except
+      on E:exception do
+        MessageDlg(E.Message, mtError, [mbOK], 0);       // Send message to dialog box
+    end;
+end;
+
+procedure SaveDMReplicateFile(const strFlNm: string; const intRplct: integer);
+var
+  inx,
+  iny: integer;
+  strtypRD: TStrings;
+  strWork: string;
+begin
+  with TestTableForSpeciesData do
+    try
+      strtypRD := TStringList.Create;
+      try
+        strtypRD.Clear;
+        strWork := 'Replicate:' + IntToStr(intRplct);
+        for inx := 0 to SpeciesCount - 1 do
+          strWork := strWork + ',' + Species[inx].SpeciesName;
+        strtypRD.Append(strWork);
+        for iny := 0 to SpeciesCount - 1 do
+        begin
+          strWork := Species[iny].SpeciesName;
+          for inx := 1 to iny do
+            strWork := strWork + ',' + FloatToStrF(darBSDistanceMatrix[intRplct][inx - 1][iny], ffFixed, 10, 6);
+          strtypRD.Append(strWork);
+        end;
+        strtypRD.SaveToFile(strFlNm);
+      finally
+        strtypRD.Free;
+      end;
+    except
+      on E:exception do
+        MessageDlg(E.Message, mtError, [mbOK], 0);       // Send message to dialog box
+    end;
+end;
+
+procedure SaveMegaFormatFile(const strFlNm: string);
+var
+  inx,
+  iny: integer;
+  strtypMF: TStrings;
+  strWork: string;
+begin
+  with TestTableForSpeciesData do
+  try
+    strtypMF := TStringList.Create;
+    try
+      strtypMF.Clear;
+      strWork := '#mega';
+      strtypMF.Append(strWork);
+      strWork := '!Title: ' + SpeciesTitle + ';';
+      strtypMF.Append(strWork);
+      strWork := '!Format DataType=Distance DataFormat=LowerLeft NTaxa=' + IntToStr(SpeciesCount) + ';';
+      strtypMF.Append(strWork);
+      strtypMF.Append(strBlank);
+      for inx := 1 to SpeciesCount do
+      begin
+        strWork := '[' + IntToStr(inx) + '] #' + strSpcToUndrscr(Species[inx - 1].SpeciesName);
+        strtypMF.Append(strWork);
+      end;
+      strtypMF.Append(strBlank);
+      strWork := '[   ';
+      for inx := 1 to SpeciesCount do
+        strWork := strWork + IntToStr(inx) + '    ';
+      strWork := strWork + ']';
+      strtypMF.Append(strWork);
+      strtypMF.Append(strBlank);
+      for inx := 1 to SpeciesCount do
+      begin
+        strWork := '[' + IntToStr(inx) + ']';
+        for iny := 1 to inx - 1 do
+          strWork := strWork + ' ' + FloatToStrF(DistanceMatrix[iny - 1, inx - 1], ffFixed, 10, 6);
+        strtypMF.Append(strWork);
+      end;
+      strtypMF.SaveToFile(strFlNm);
+    finally
+      strtypMF.Free;
+    end;
+  except
+    on E:exception do
+      MessageDlg(E.Message, mtError, [mbOK], 0);       // Send message to dialog box
+  end;
+end;
+
+end.

@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="10"/>
+    <BuildModes Active="Default"/>
+    <Units Count="15">
+      <Unit0>
+        <Filename Value="prjPhyIoM.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="8"/>
+        <CursorPos X="41" Y="21"/>
+        <UsageCount Value="202"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="modphyiom.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmPhyIoM"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <CursorPos X="22" Y="3"/>
+        <UsageCount Value="202"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="modtestdata.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="modTestData"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="3450"/>
+        <CursorPos Y="3461"/>
+        <UsageCount Value="211"/>
+        <Bookmarks Count="10">
+          <Item0 X="2" Y="1460" ID="5"/>
+          <Item1 X="3" Y="1312" ID="6"/>
+          <Item2 Y="1873" ID="8"/>
+          <Item3 Y="2705"/>
+          <Item4 Y="4752" ID="2"/>
+          <Item5 Y="3077" ID="7"/>
+          <Item6 Y="4980" ID="3"/>
+          <Item7 Y="5092" ID="9"/>
+          <Item8 Y="2107" ID="1"/>
+          <Item9 Y="3996" ID="4"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="modselecttype.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="dlgSelectFileType"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modSelectType"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="77"/>
+        <CursorPos X="13" Y="91"/>
+        <UsageCount Value="205"/>
+        <Loaded Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="modrunoptions.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="dlgRunOptions"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modRunOptions"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="33"/>
+        <CursorPos Y="58"/>
+        <UsageCount Value="237"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="modtreegraph.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmTreeGraph"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modTreeGraph"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="87"/>
+        <CursorPos Y="87"/>
+        <UsageCount Value="234"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="moddatatypes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="modDataTypes"/>
+        <EditorIndex Value="-1"/>
+        <WindowIndex Value="-1"/>
+        <UsageCount Value="203"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="modcalcerrs.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmCalculatedErrors"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modCalcErrs"/>
+        <EditorIndex Value="7"/>
+        <TopLine Value="24"/>
+        <CursorPos X="6" Y="37"/>
+        <UsageCount Value="258"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="modtreeview.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmTreeListDown"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modTreeView"/>
+        <EditorIndex Value="6"/>
+        <UsageCount Value="205"/>
+        <Loaded Value="True"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="modabout.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmAbout"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="35"/>
+        <CursorPos X="77" Y="47"/>
+        <UsageCount Value="281"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="modprinttree.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmPrintTree"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modPrintTree"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="216"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="modselectnewroot.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmSelectNewRoot"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modSelectNewRoot"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="38"/>
+        <CursorPos X="6" Y="51"/>
+        <UsageCount Value="200"/>
+        <Loaded Value="True"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="modinstructions.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmInstructions"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modInstructions"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="4"/>
+        <CursorPos X="20" Y="18"/>
+        <UsageCount Value="258"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="modformbckgrd.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FrameBckgrd"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="modFormBckgrd"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="31" Y="8"/>
+        <UsageCount Value="209"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="prjdphyiom.pas"/>
+        <UnitName Value="prjDPhyIoM"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="12"/>
+        <UsageCount Value="10"/>
+      </Unit14>
+    </Units>
+    <JumpHistory Count="30" HistoryIndex="29">
+      <Position1>
+        <Filename Value="modtreeview.pas"/>
+        <Caret Line="107" Column="55" TopLine="102"/>
+      </Position1>
+      <Position2>
+        <Filename Value="modtreeview.pas"/>
+        <Caret Line="143" Column="20" TopLine="132"/>
+      </Position2>
+      <Position3>
+        <Filename Value="modtestdata.pas"/>
+      </Position3>
+      <Position4>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="16" Column="23"/>
+      </Position4>
+      <Position5>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="44" Column="23" TopLine="23"/>
+      </Position5>
+      <Position6>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="145" Column="60" TopLine="124"/>
+      </Position6>
+      <Position7>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="146" Column="23" TopLine="125"/>
+      </Position7>
+      <Position8>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="148" Column="24" TopLine="127"/>
+      </Position8>
+      <Position9>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3130" Column="12" TopLine="3109"/>
+      </Position9>
+      <Position10>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3131" Column="51" TopLine="3110"/>
+      </Position10>
+      <Position11>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3132" Column="38" TopLine="3111"/>
+      </Position11>
+      <Position12>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3134" Column="38" TopLine="3113"/>
+      </Position12>
+      <Position13>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3236" Column="50" TopLine="3215"/>
+      </Position13>
+      <Position14>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3251" Column="50" TopLine="3230"/>
+      </Position14>
+      <Position15>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3257" Column="22" TopLine="3236"/>
+      </Position15>
+      <Position16>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3268" Column="59" TopLine="3247"/>
+      </Position16>
+      <Position17>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3269" Column="68" TopLine="3248"/>
+      </Position17>
+      <Position18>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3278" Column="57" TopLine="3257"/>
+      </Position18>
+      <Position19>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3283" Column="22" TopLine="3262"/>
+      </Position19>
+      <Position20>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3292" Column="59" TopLine="3271"/>
+      </Position20>
+      <Position21>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3293" Column="68" TopLine="3272"/>
+      </Position21>
+      <Position22>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3298" Column="50" TopLine="3277"/>
+      </Position22>
+      <Position23>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3304" Column="22" TopLine="3283"/>
+      </Position23>
+      <Position24>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3316" Column="59" TopLine="3295"/>
+      </Position24>
+      <Position25>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3317" Column="68" TopLine="3296"/>
+      </Position25>
+      <Position26>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3328" Column="55" TopLine="3307"/>
+      </Position26>
+      <Position27>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3350" Column="50" TopLine="3329"/>
+      </Position27>
+      <Position28>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3355" Column="22" TopLine="3334"/>
+      </Position28>
+      <Position29>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3364" Column="59" TopLine="3343"/>
+      </Position29>
+      <Position30>
+        <Filename Value="modtestdata.pas"/>
+        <Caret Line="3365" Column="68" TopLine="3344"/>
+      </Position30>
+    </JumpHistory>
+  </ProjectSession>
+  <Debugging>
+    <BreakPoints Count="1">
+      <Item1>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="modtestdata.pas"/>
+        <Line Value="3461"/>
+      </Item1>
+    </BreakPoints>
+    <Watches Count="14">
+      <Item1>
+        <Expression Value="arryinxBracket[inz - 1, inx]"/>
+      </Item1>
+      <Item2>
+        <Expression Value="arryinxBracket[inz, inx]"/>
+      </Item2>
+      <Item3>
+        <Expression Value="arstrConnected[inz - 1, iny]"/>
+      </Item3>
+      <Item4>
+        <Expression Value="arstrConnected[inz, inx]"/>
+      </Item4>
+      <Item5>
+        <Expression Value="arryinxBracket[inz]"/>
+      </Item5>
+      <Item6>
+        <Expression Value="arryinxBracket[inz - 1]"/>
+      </Item6>
+      <Item7>
+        <Expression Value="arryinxBracket[7,3]"/>
+      </Item7>
+      <Item8>
+        <Expression Value="arryinxBracket[inz - 1, intHigh]"/>
+      </Item8>
+      <Item9>
+        <Expression Value="intPixelFactor"/>
+      </Item9>
+      <Item10>
+        <Expression Value="trvwTextDownBased.Selected.Parent.Text"/>
+        <DisplayStyle Value="wdfString"/>
+      </Item10>
+      <Item11>
+        <Expression Value="Printer.PageWidth"/>
+      </Item11>
+      <Item12>
+        <Expression Value="Length(darBtStrpRwDtMsrmnt)"/>
+      </Item12>
+      <Item13>
+        <Expression Value="intSplit=53"/>
+      </Item13>
+      <Item14>
+        <Expression Value="TestTableForSpeciesData.intSplit&lt;>50"/>
+      </Item14>
+    </Watches>
+  </Debugging>
+</CONFIG>

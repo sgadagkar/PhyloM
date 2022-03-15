@@ -1,0 +1,126 @@
+object frmTreeListDown: TfrmTreeListDown
+  Left = 71
+  Height = 476
+  Top = 199
+  Width = 1024
+  Caption = 'Tree List Down Display:'
+  ClientHeight = 476
+  ClientWidth = 1024
+  OnActivate = FormActivate
+  OnClose = FormClose
+  OnCreate = FormCreate
+  LCLVersion = '1.6.4.0'
+  object trvwTextDownBased: TTreeView
+    Left = 8
+    Height = 351
+    Top = 24
+    Width = 505
+    DefaultItemHeight = 18
+    ExpandSignType = tvestPlusMinus
+    TabOrder = 0
+  end
+  object lblTreeDownView: TLabel
+    Left = 11
+    Height = 15
+    Top = 8
+    Width = 110
+    Caption = 'Tree Text Down View'
+    ParentColor = False
+  end
+  object btnClose: TButton
+    Left = 896
+    Height = 36
+    Top = 392
+    Width = 116
+    Caption = '&Close'
+    Font.CharSet = ANSI_CHARSET
+    Font.Height = -16
+    Font.Name = 'Arial'
+    Font.Pitch = fpVariable
+    Font.Quality = fqDraft
+    Font.Style = [fsBold]
+    OnClick = btnCloseClick
+    ParentFont = False
+    TabOrder = 1
+  end
+  object memTreeView: TMemo
+    Left = 534
+    Height = 351
+    Top = 24
+    Width = 483
+    ScrollBars = ssAutoBoth
+    TabOrder = 2
+    WordWrap = False
+  end
+  object lblTreeMap: TLabel
+    Left = 537
+    Height = 15
+    Top = 8
+    Width = 53
+    Caption = 'Tree Map:'
+    ParentColor = False
+  end
+  object chkbxViewTreeMap: TCheckBox
+    Left = 144
+    Height = 19
+    Top = 409
+    Width = 98
+    Caption = 'View Tree Map'
+    Checked = True
+    OnChange = chkbxViewTreeMapChange
+    State = cbChecked
+    TabOrder = 3
+  end
+  object trvwRerootedTree: TTreeView
+    Left = 522
+    Height = 352
+    Top = 26
+    Width = 493
+    DefaultItemHeight = 18
+    ExpandSignType = tvestPlusMinus
+    TabOrder = 4
+    Visible = False
+  end
+  object lblRerootedTree: TLabel
+    Left = 704
+    Height = 15
+    Top = 8
+    Width = 102
+    Caption = 'Rerooted Tree View'
+    ParentColor = False
+    Visible = False
+  end
+  object btnSetRoot: TButton
+    Left = 16
+    Height = 36
+    Hint = 'Set root to selected branch'
+    Top = 392
+    Width = 93
+    Caption = 'Set Root'
+    OnClick = btnSetRootClick
+    TabOrder = 5
+  end
+  object lblNewickFormat: TLabel
+    Left = 205
+    Height = 15
+    Top = 385
+    Width = 83
+    Caption = 'Newick Format:'
+    ParentColor = False
+  end
+  object memRerootedNwkFmt: TMemo
+    Left = 292
+    Height = 70
+    Top = 384
+    Width = 596
+    ScrollBars = ssAutoVertical
+    TabOrder = 6
+  end
+  object svdlgRerootedNewick: TSaveDialog
+    DefaultExt = '.nwk'
+    Filter = '(*.nwk) Newick Format|*.nwk|(*.*) All files|*.*'
+    InitialDir = 'C:\'
+    left = 117
+    top = 432
+  end
+end

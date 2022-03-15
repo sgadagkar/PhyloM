@@ -1,0 +1,118 @@
+object frmResizeForm: TfrmResizeForm
+  Left = 238
+  Height = 465
+  Top = 158
+  Width = 790
+  HorzScrollBar.Page = 743
+  VertScrollBar.Page = 433
+  AutoScroll = True
+  Caption = 'Resize Form & Controls'
+  ClientHeight = 465
+  ClientWidth = 790
+  OnCreate = FormCreate
+  LCLVersion = '1.4.0.4'
+  object shpResize: TShape
+    Left = 12
+    Height = 389
+    Top = 44
+    Width = 389
+  end
+  object btnExit: TButton
+    Left = 687
+    Height = 27
+    Top = 9
+    Width = 56
+    Caption = 'Exit'
+    OnClick = btnExitClick
+    TabOrder = 0
+  end
+  object lblHShape: TLabel
+    Left = 15
+    Height = 15
+    Top = 12
+    Width = 49
+    Caption = 'H-Shape:'
+    ParentColor = False
+  end
+  object txtShapeHight: TEdit
+    Left = 65
+    Height = 23
+    Top = 9
+    Width = 55
+    TabOrder = 1
+    Text = '---0---'
+  end
+  object lblHForm: TLabel
+    Left = 130
+    Height = 15
+    Top = 12
+    Width = 45
+    Caption = 'H-Form:'
+    ParentColor = False
+  end
+  object txtFormHeight: TEdit
+    Left = 180
+    Height = 23
+    Top = 9
+    Width = 62
+    TabOrder = 2
+    Text = '---0---'
+  end
+  object btnRange: TButton
+    Left = 600
+    Height = 27
+    Top = 9
+    Width = 79
+    Caption = 'Range'
+    OnClick = btnRangeClick
+    TabOrder = 3
+  end
+  object lblVRange: TLabel
+    Left = 488
+    Height = 15
+    Top = 12
+    Width = 48
+    Caption = 'V-Range:'
+    ParentColor = False
+  end
+  object txtVertRange: TEdit
+    Left = 538
+    Height = 23
+    Top = 9
+    Width = 56
+    TabOrder = 4
+    Text = '---0---'
+  end
+  object lblWShape: TLabel
+    Left = 256
+    Height = 15
+    Top = 12
+    Width = 51
+    Caption = 'W-Shape:'
+    ParentColor = False
+  end
+  object txtShapeWidth: TEdit
+    Left = 312
+    Height = 23
+    Top = 10
+    Width = 56
+    TabOrder = 5
+    Text = '---0---'
+  end
+  object lblWForm: TLabel
+    Left = 376
+    Height = 15
+    Top = 12
+    Width = 47
+    Caption = 'W-Form:'
+    ParentColor = False
+  end
+  object txtFormWidth: TEdit
+    Left = 424
+    Height = 23
+    Top = 9
+    Width = 56
+    TabOrder = 6
+    Text = '---0---'
+  end
+end

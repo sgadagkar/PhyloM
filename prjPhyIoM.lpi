@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="10"/>
+    <PathDelim Value="\"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="PhyloM Application"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <Icon Value="0"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <MacroValues Count="1">
+      <Macro1 Name="LCLWidgetType" Value="win32"/>
+    </MacroValues>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+      <SharedMatrixOptions Count="1">
+        <Item1 ID="712368665385" Modes="Default" Type="IDEMacro" MacroName="LCLWidgetType" Value="win32"/>
+      </SharedMatrixOptions>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <CommandLineParams Value="/Test"/>
+      </local>
+    </RunParams>
+    <RequiredPackages Count="8">
+      <Item1>
+        <PackageName Value="richmemopackage"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="SynEdit"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="SQLDBLaz"/>
+      </Item3>
+      <Item4>
+        <PackageName Value="Printer4Lazarus"/>
+      </Item4>
+      <Item5>
+        <PackageName Value="LazControls"/>
+      </Item5>
+      <Item6>
+        <PackageName Value="TAChartLazarusPkg"/>
+      </Item6>
+      <Item7>
+        <PackageName Value="RunTimeTypeInfoControls"/>
+      </Item7>
+      <Item8>
+        <PackageName Value="LCL"/>
+      </Item8>
+    </RequiredPackages>
+    <Units Count="14">
+      <Unit0>
+        <Filename Value="prjPhyIoM.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="modphyiom.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmPhyIoM"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="modtestdata.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="modTestData"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="modselecttype.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="dlgSelectFileType"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modSelectType"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="modrunoptions.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="dlgRunOptions"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modRunOptions"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="modtreegraph.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmTreeGraph"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modTreeGraph"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="moddatatypes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="modDataTypes"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="modcalcerrs.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmCalculatedErrors"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modCalcErrs"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="modtreeview.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmTreeListDown"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modTreeView"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="modabout.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmAbout"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="modprinttree.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmPrintTree"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modPrintTree"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="modselectnewroot.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmSelectNewRoot"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modSelectNewRoot"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="modinstructions.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmInstructions"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="modInstructions"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="modformbckgrd.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FrameBckgrd"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="modFormBckgrd"/>
+      </Unit13>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="PhyloM"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="5">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+      <Item4>
+        <Name Value="RunError(201)"/>
+      </Item4>
+      <Item5>
+        <Name Value="ERangeError"/>
+      </Item5>
+    </Exceptions>
+  </Debugging>
+</CONFIG>
