@@ -1,4 +1,5 @@
 // Module to load measurement and binary data to grid and record structures
+// Test commit comment
 unit modTestData;
 
 {$mode objfpc}{$H+}
